@@ -13,7 +13,14 @@ from datetime import date, datetime, timedelta
 import subprocess
 import platform
 
-from Restaurant  import Serveur, Caissier, Manager, Restaurant
+# Imports pour le rapport PDF
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+
+from Restaurant import Serveur, Caissier, Manager, Restaurant
 from menu import MENU, TVA
 from recu import afficher_apercu_recu, generer_recu, imprimer_recu_depuis_commande, get_dossier_recus
 
@@ -293,8 +300,7 @@ class FenetreRestaurant(tk.Tk):
         # Variable pour stocker l'ID de la dernière commande
         self.derniere_commande_id = None
         self.derniere_commande_info = None
-        self.selected_commande_id = None
-        self.details_pane_added = False
+        self.commande_selectionnee_id = None
 
     def appliquer_style(self):
         """Applique un style moderne a l'interface."""
@@ -512,15 +518,34 @@ class FenetreRestaurant(tk.Tk):
                                         font=('Arial', 14, 'bold'), fg=COLORS['success'], bg=COLORS['light'])
         self.label_total_ttc.pack(anchor="w", pady=(5, 0))
 
-        # Moyen de paiement
-        tk.Label(cadre_contenu, text="Moyen de paiement :", font=('Arial', 10), 
-                bg=COLORS['light'], fg=COLORS['dark']).pack(anchor="w", pady=(10, 5))
-        self.combo_paiement = ttk.Combobox(cadre_contenu, values=MOYENS_PAIEMENT, 
+        # ============================================================
+        # LIGNE : Moyen de paiement (gauche) + Boutons (droite)
+        # ============================================================
+        cadre_ligne_basse = tk.Frame(cadre_contenu, bg=COLORS['light'])
+        cadre_ligne_basse.pack(anchor="w", pady=(10, 10), fill="x")
+
+        # Partie gauche : Moyen de paiement
+        cadre_gauche_paiement = tk.Frame(cadre_ligne_basse, bg=COLORS['light'])
+        cadre_gauche_paiement.pack(side="left", fill="x", expand=True)
+
+        tk.Label(cadre_gauche_paiement, text="Moyen de paiement :", font=('Arial', 10), 
+                bg=COLORS['light'], fg=COLORS['dark']).pack(side="left", padx=(0, 10))
+        self.combo_paiement = ttk.Combobox(cadre_gauche_paiement, values=MOYENS_PAIEMENT, 
                                            state="readonly", width=20, font=('Arial', 10))
         self.combo_paiement.current(0)
-        self.combo_paiement.pack(anchor="w", pady=(0, 10))
+        self.combo_paiement.pack(side="left")
 
-        # Avis
+        # Partie droite : Boutons Valider + Vider alignés à droite
+        cadre_droite_boutons = tk.Frame(cadre_ligne_basse, bg=COLORS['light'])
+        cadre_droite_boutons.pack(side="right")
+
+        ttk.Button(cadre_droite_boutons, text="✅ Valider la commande", 
+                  command=self.valider_commande, style='Accent.TButton').pack(side="left", padx=5)
+        
+        ttk.Button(cadre_droite_boutons, text="🗑️ Vider le panier", 
+                  command=self.vider_panier, style='Danger.TButton').pack(side="left", padx=5)
+
+        # Avis (en dessous)
         tk.Label(cadre_contenu, text="Avis :", font=('Arial', 10), 
                 bg=COLORS['light'], fg=COLORS['dark']).pack(anchor="w", pady=(10, 5))
         self.combo_avis = ttk.Combobox(cadre_contenu, values=["bon", "excellent", "pimenté", "parfait"], 
@@ -528,218 +553,16 @@ class FenetreRestaurant(tk.Tk):
         self.combo_avis.current(0)
         self.combo_avis.pack(anchor="w", pady=(0, 20))
 
-        cadre_boutons = tk.Frame(cadre_contenu, bg=COLORS['light'])
-        cadre_boutons.pack(pady=10)
-        
-        ttk.Button(cadre_boutons, text="✅ Valider la commande", 
-                  command=self.valider_commande, style='Accent.TButton').pack(side="left", padx=5)
-        
-        ttk.Button(cadre_boutons, text="🗑️ Vider le panier", 
-                  command=self.vider_panier, style='Danger.TButton').pack(side="left", padx=5)
-        
         tk.Frame(contenu, height=50, bg=COLORS['light']).pack()
 
-    def ajouter_plat_selectionne(self, event=None):
-        plat = self.selecteur_plat.get().strip()
-        if not plat:
-            messagebox.showwarning("Aucun plat", "Veuillez selectionner un plat dans la liste.")
-            return
-        
-        if plat not in MENU:
-            messagebox.showwarning("Plat invalide", f"'{plat}' n'est pas dans le menu.")
-            return
-        
-        dialog = tk.Toplevel(self)
-        dialog.title("Quantité")
-        dialog.geometry("300x150")
-        dialog.configure(bg=COLORS['light'])
-        dialog.transient(self)
-        dialog.grab_set()
-        
-        tk.Label(dialog, text=f"Quantité pour {plat} :", 
-                font=('Arial', 10), bg=COLORS['light']).pack(pady=10)
-        
-        spinbox = ttk.Spinbox(dialog, from_=1, to=20, width=10)
-        spinbox.set(1)
-        spinbox.pack(pady=5)
-        
-        def confirmer():
-            quantite = int(spinbox.get())
-            dialog.destroy()
-            self.ajouter_au_panier(plat, quantite)
-        
-        ttk.Button(dialog, text="Ajouter", command=confirmer, 
-                  style='Accent.TButton').pack(pady=10)
-        
-        dialog.update_idletasks()
-        x = (dialog.winfo_screenwidth() - dialog.winfo_width()) // 2
-        y = (dialog.winfo_screenheight() - dialog.winfo_height()) // 2
-        dialog.geometry(f"+{x}+{y}")
-
-    def ajouter_au_panier(self, plat, quantite):
-        for i, (p, q) in enumerate(self.panier_items):
-            if p == plat:
-                self.panier_items[i] = (p, q + quantite)
-                break
-        else:
-            self.panier_items.append((plat, quantite))
-        
-        self.actualiser_panier()
-        self.selecteur_plat.set("")
-
-    def actualiser_panier(self):
-        for widget in self.panier_frame.winfo_children():
-            widget.destroy()
-        
-        total_ht = 0
-        for plat, quantite in self.panier_items:
-            prix = MENU[plat] * quantite
-            total_ht += prix
-            
-            ligne = tk.Frame(self.panier_frame, bg=COLORS['light'])
-            ligne.pack(fill="x", pady=2)
-            
-            tk.Label(ligne, text=f"• {plat} x{quantite}", 
-                    font=('Arial', 10), bg=COLORS['light']).pack(side="left", padx=5)
-            tk.Label(ligne, text=f"={format_price(prix)}", 
-                    font=('Arial', 10), bg=COLORS['light'], fg=COLORS['primary']).pack(side="left", padx=5)
-            
-            ttk.Button(ligne, text="✕", width=3,
-                      command=lambda p=plat: self.supprimer_du_panier(p)).pack(side="right", padx=5)
-        
-        tva = total_ht * TVA
-        total_ttc = total_ht + tva
-        
-        self.label_total_ht.config(text=f"Total HT : {format_price(total_ht)}")
-        self.label_tva.config(text=f"TVA (18%) : {format_price(tva)}")
-        self.label_total_ttc.config(text=f"Total TTC : {format_price(total_ttc)}")
-
-    def supprimer_du_panier(self, plat):
-        self.panier_items = [(p, q) for p, q in self.panier_items if p != plat]
-        self.actualiser_panier()
-
-    def vider_panier(self):
-        if self.panier_items:
-            if messagebox.askyesno("Confirmation", "Vider le panier ?"):
-                self.panier_items = []
-                self.actualiser_panier()
-
-    def imprimer_recu_derniere_commande(self):
-        if self.derniere_commande_info:
-            afficher_apercu_recu(self.derniere_commande_info, self)
-        else:
-            messagebox.showwarning("Aucune commande", "Aucune commande récente à imprimer.")
-
-    # ============================================================
-    # VALIDER LA COMMANDE (CORRIGÉ - RÉINITIALISATION COMPLÈTE)
-    # ============================================================
-    def valider_commande(self):
-        nom_client = self.champ_client.get().strip()
-        
-        if not nom_client:
-            messagebox.showwarning("Information manquante", "Merci d'indiquer le nom du client.")
-            return
-        
-        if not self.panier_items:
-            messagebox.showwarning("Panier vide", "Le panier est vide. Ajoutez des plats.")
-            return
-        
-        paiement = self.combo_paiement.get()
-        
-        plats_affichage = []
-        plats_commande = []
-        total_ht = 0
-        
-        for plat, quantite in self.panier_items:
-            if quantite > 1:
-                plats_affichage.append(f"{plat} x{quantite}")
-            else:
-                plats_affichage.append(plat)
-            plats_commande.extend([plat] * quantite)
-            total_ht += MENU[plat] * quantite
-        
-        avis = self.combo_avis.get()
-        
-        # Enregistrer la commande
-        nouvel_id, total_ht, tva, total_ttc = ajouter_commande_fichier( nom_client, plats_affichage, total_ht, avis, paiement)  
-        # Stocker les infos pour le reçu
-        self.derniere_commande_info = {
-            'id': str(nouvel_id),
-            'date': date.today().strftime('%d/%m/%Y'),
-            'heure': datetime.now().strftime('%H:%M'),
-            'client': nom_client,
-            'plats': plats_affichage,
-            'avis': avis,
-            'paiement': paiement
-        }
-        
-        # Activer le bouton Reçu
-        self.btn_imprimer_recu.config(state="normal")
-        
-        # Sauvegarder les données pour le message
-        client = nom_client
-        plats = plats_affichage
-        total_ht_val = total_ht
-        tva_val = tva
-        total_ttc_val = total_ttc
-        paiement_val = paiement
-        avis_val = avis
-        id_commande = nouvel_id
-        
-        # ============================================================
-        # RÉINITIALISATION COMPLÈTE DES CHAMPS
-        # ============================================================
-        self.champ_client.delete(0, tk.END)
-        self.panier_items = []
-        self.actualiser_panier()
-        self.combo_avis.current(0)
-        self.combo_paiement.current(0)
-        self.selecteur_plat.set("")
-        
-        # Remettre les totaux à 0
-        self.label_total_ht.config(text="Total HT : 0 FCFA")
-        self.label_tva.config(text="TVA (18%) : 0 FCFA")
-        self.label_total_ttc.config(text="Total TTC : 0 FCFA")
-        
-        # ============================================================
-        # MESSAGE DE CONFIRMATION (TOUT EN FCFA)
-        # ============================================================
-        messagebox.showinfo("Commande enregistree",
-                            f"✅ Commande enregistree !\n\n"
-                            f"N°: #{id_commande}\n"
-                            f"Client : {client}\n"
-                            f"Plats : {', '.join(plats)}\n"
-                            f"Total HT : {format_price(total_ht_val)}\n"
-                            f"TVA (18%) : {format_price(tva_val)}\n"
-                            f"Total TTC : {format_price(total_ttc_val)}\n"
-                            f"Moyen de paiement : {paiement_val}\n"
-                            f"Avis : {avis_val}")
-        
-        # ============================================================
-        # PROPOSER D'IMPRIMER LE REÇU
-        # ============================================================
-        if messagebox.askyesno("Reçu", "Voulez-vous imprimer un reçu pour cette commande ?"):
-            afficher_apercu_recu(self.derniere_commande_info, self)
-        
-        # Mettre à jour la liste des commandes
-        self.appliquer_filtres_commandes()
-
     # ==============================================================
-    # ONGLET 2 : COMMANDES
+    # ONGLET 2 : COMMANDES (sélection sans ouverture automatique)
     # ==============================================================
     def construire_onglet_commandes(self):
-        self.paned = ttk.PanedWindow(self.onglet_commandes, orient='horizontal')
-        self.paned.pack(fill="both", expand=True)
-        
-        cadre_gauche = tk.Frame(self.paned, bg=COLORS['light'])
-        self.paned.add(cadre_gauche, weight=1)
-        
-        self.cadre_droite = tk.Frame(self.paned, bg=COLORS['white'], width=350)
-
-        # Liste des commandes
-        cadre = cadre_gauche
+        cadre = self.onglet_commandes
         cadre.configure(bg=COLORS['light'])
 
+        # Canvas avec scroll pour la liste
         canvas = tk.Canvas(cadre, bg=COLORS['light'], highlightthickness=0)
         scrollbar = ttk.Scrollbar(cadre, orient="vertical", command=canvas.yview)
         scrollable_frame = tk.Frame(canvas, bg=COLORS['light'])
@@ -841,6 +664,7 @@ class FenetreRestaurant(tk.Tk):
         scroll_y.pack(side="right", fill="y")
         scroll_x.pack(side="bottom", fill="x")
         
+        # Bind pour la sélection → stocke l'ID sans ouvrir la fenêtre
         self.tableau_commandes.bind("<<TreeviewSelect>>", self.on_commande_selectionnee)
 
         cadre_bas = tk.Frame(contenu, bg=COLORS['light'])
@@ -853,8 +677,9 @@ class FenetreRestaurant(tk.Tk):
         cadre_boutons = tk.Frame(cadre_bas, bg=COLORS['light'])
         cadre_boutons.pack(side="right")
         
-        ttk.Button(cadre_boutons, text="🖨️ Reçu", 
-                  command=self.imprimer_recu_selectionne,
+        # Bouton "🖨️ Recu" → ouvre les détails de la commande sélectionnée
+        ttk.Button(cadre_boutons, text="🖨️ Recu", 
+                  command=self.afficher_recu_selection,
                   style='Print.TButton').pack(side="right", padx=5)
         
         ttk.Button(cadre_boutons, text="🗑️ Supprimer", 
@@ -863,84 +688,86 @@ class FenetreRestaurant(tk.Tk):
         
         tk.Frame(contenu, height=50, bg=COLORS['light']).pack()
 
-        # Panneau de détails (caché par défaut)
-        self.construire_panneau_details()
         self.appliquer_filtres_commandes()
 
-    def construire_panneau_details(self):
-        cadre = self.cadre_droite
-        cadre.configure(bg=COLORS['white'])
-        
-        tk.Label(cadre, text="📄 Détails de la commande", 
-                font=('Arial', 12, 'bold'), bg=COLORS['white'], fg=COLORS['primary']).pack(pady=(10, 5))
-        
-        details_canvas = tk.Canvas(cadre, bg='white', highlightthickness=0)
-        details_scrollbar = ttk.Scrollbar(cadre, orient="vertical", command=details_canvas.yview)
-        details_frame = tk.Frame(details_canvas, bg='white')
-        
-        details_frame.bind(
-            "<Configure>",
-            lambda e: details_canvas.configure(scrollregion=details_canvas.bbox("all"))
-        )
-        
-        details_canvas.create_window((0, 0), window=details_frame, anchor="nw", width=details_canvas.winfo_width())
-        details_canvas.configure(yscrollcommand=details_scrollbar.set)
-        
-        def _configure_details_canvas(event):
-            details_canvas.itemconfig(1, width=event.width)
-        
-        details_canvas.bind("<Configure>", _configure_details_canvas)
-        
-        details_canvas.pack(side="left", fill="both", expand=True)
-        details_scrollbar.pack(side="right", fill="y")
-        
-        self.details_text = tk.Text(details_frame, height=20, width=35, 
-                                   font=('Arial', 9), bg='white', wrap='word')
-        self.details_text.pack(fill="both", expand=True, padx=10, pady=5)
-        self.details_text.config(state="disabled")
-        
-        self.details_text.config(state="normal")
-        self.details_text.insert("1.0", "\n\n\n   👆 Cliquez sur une commande\n   pour voir les détails ici")
-        self.details_text.config(state="disabled")
-        
-        btn_print_details = ttk.Button(cadre, text="🖨️ Imprimer ce reçu", 
-                                       command=self.imprimer_recu_depuis_details,
-                                       style='Print.TButton')
-        btn_print_details.pack(pady=5)
-        
-        self.cadre_droite.pack_forget()
+    # ==============================================================
+    # GESTION DE LA SÉLECTION (sans ouverture automatique)
+    # ==============================================================
 
     def on_commande_selectionnee(self, event):
+        """Stocke l'ID de la commande sélectionnée sans ouvrir de fenêtre."""
         selection = self.tableau_commandes.selection()
         if not selection:
+            self.commande_selectionnee_id = None
             return
-        
         valeurs = self.tableau_commandes.item(selection[0], "values")
         if not valeurs:
+            self.commande_selectionnee_id = None
             return
-        
-        commande_id = valeurs[0]
-        
-        commandes = charger_commandes()
-        for cmd in commandes:
-            if str(cmd.get('ID', '')) == str(commande_id):
-                if not self.details_pane_added:
-                    self.paned.add(self.cadre_droite, weight=0)
-                    self.details_pane_added = True
-                
-                self.afficher_details_commande(cmd)
-                self.selected_commande_id = commande_id
-                self.paned.update_idletasks()
-                return
+        self.commande_selectionnee_id = valeurs[0]
 
-    def afficher_details_commande(self, cmd):
-        self.details_text.config(state="normal")
-        self.details_text.delete("1.0", tk.END)
-        
+    # ==============================================================
+    # AFFICHAGE DU RECU POUR LA COMMANDE SÉLECTIONNÉE
+    # ==============================================================
+
+    def afficher_recu_selection(self):
+        """Ouvre la fenêtre de détails pour la commande sélectionnée."""
+        if not self.commande_selectionnee_id:
+            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner une commande dans la liste.")
+            return
+        self.ouvrir_details_commande(self.commande_selectionnee_id)
+
+    # ==============================================================
+    # FENÊTRE FLOTTANTE DES DÉTAILS
+    # ==============================================================
+
+    def ouvrir_details_commande(self, commande_id):
+        """Ouvre une fenêtre flottante avec les détails de la commande."""
+        commandes = charger_commandes()
+        cmd = None
+        for c in commandes:
+            if str(c.get('ID', '')) == str(commande_id):
+                cmd = c
+                break
+        if cmd is None:
+            messagebox.showerror("Erreur", "Commande non trouvée.")
+            return
+
+        fenetre = tk.Toplevel(self)
+        fenetre.title(f"Détails de la commande #{commande_id}")
+        fenetre.geometry("420x600")
+        fenetre.configure(bg=COLORS['white'])
+        fenetre.transient(self)
+        fenetre.grab_set()
+        fenetre.focus_force()
+
+        # Centrer la fenêtre
+        fenetre.update_idletasks()
+        x = (self.winfo_screenwidth() - fenetre.winfo_width()) // 2
+        y = (self.winfo_screenheight() - fenetre.winfo_height()) // 2
+        fenetre.geometry(f"+{x}+{y}")
+
+        # Titre
+        tk.Label(fenetre, text=f"📄 Détails de la commande n°{commande_id}",
+                font=('Arial', 14, 'bold'), bg=COLORS['white'], fg=COLORS['primary']).pack(pady=(15, 10))
+
+        # Zone de texte avec scroll
+        cadre_texte = tk.Frame(fenetre, bg=COLORS['white'])
+        cadre_texte.pack(fill="both", expand=True, padx=15, pady=5)
+
+        scrollbar = ttk.Scrollbar(cadre_texte)
+        scrollbar.pack(side="right", fill="y")
+
+        texte_details = tk.Text(cadre_texte, height=20, width=45, font=('Arial', 9),
+                                wrap='word', yscrollcommand=scrollbar.set, bg='white')
+        texte_details.pack(side="left", fill="both", expand=True)
+        scrollbar.config(command=texte_details.yview)
+
+        # Remplir les détails
         total_ht = float(cmd.get('Total HT (€)', '0'))
         tva = float(cmd.get('TVA (€)', '0'))
         total_ttc = float(cmd.get('Total TTC (€)', '0'))
-        
+
         details = f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📋 COMMANDE N°{cmd.get('ID', '0000')}
@@ -966,8 +793,87 @@ Total TTC : {format_price(total_ttc)}
 ⭐ Avis : {cmd.get('Avis', 'Non spécifié')}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
-        self.details_text.insert("1.0", details)
-        self.details_text.config(state="disabled")
+        texte_details.insert("1.0", details)
+        texte_details.config(state="disabled")
+        texte_details.update_idletasks()
+
+        # Frame pour les boutons (alignés verticalement à gauche)
+        bouton_frame = tk.Frame(fenetre, bg=COLORS['white'])
+        bouton_frame.pack(fill="x", pady=10, padx=15)
+
+        # Bouton Aperçu
+        ttk.Button(
+            bouton_frame,
+            text="🖨️ Aperçu",
+            command=lambda: self._imprimer_recu_par_id(commande_id, fenetre),
+            style='Print.TButton'
+        ).pack(fill="x", pady=3)
+
+        # Bouton Générer PDF
+        ttk.Button(
+            bouton_frame,
+            text="📄 Générer PDF",
+            command=lambda: self._generer_pdf_par_id(commande_id, fenetre),
+            style='Accent.TButton'
+        ).pack(fill="x", pady=3)
+
+        # Bouton Voir les reçus
+        ttk.Button(
+            bouton_frame,
+            text="📁 Voir les reçus",
+            command=self.ouvrir_dossier_recus,
+            style='Accent.TButton'
+        ).pack(fill="x", pady=3)
+
+        # Bouton Fermer
+        ttk.Button(
+            bouton_frame,
+            text="❌ Fermer",
+            command=fenetre.destroy,
+            style='Danger.TButton'
+        ).pack(fill="x", pady=3)
+
+    # ==============================================================
+    # FONCTIONS D'IMPRESSION / GÉNÉRATION DEPUIS LA FENÊTRE
+    # ==============================================================
+
+    def _imprimer_recu_par_id(self, commande_id, fenetre=None):
+        """Affiche l'aperçu du reçu pour l'ID donné, puis ferme la fenêtre."""
+        if commande_id:
+            imprimer_recu_depuis_commande(commande_id, self)
+            if fenetre:
+                fenetre.destroy()
+
+    def _generer_pdf_par_id(self, commande_id, fenetre=None):
+        """Génère le PDF pour l'ID donné, puis ferme la fenêtre."""
+        if not commande_id:
+            messagebox.showwarning("Aucune commande", "Veuillez sélectionner une commande.")
+            return
+        try:
+            commandes = charger_commandes()
+            for cmd in commandes:
+                if str(cmd.get('ID', '')) == str(commande_id):
+                    commande_info = {
+                        'id': cmd.get('ID', '0000'),
+                        'date': cmd.get('Date', datetime.now().strftime('%Y-%m-%d')),
+                        'heure': cmd.get('Heure', datetime.now().strftime('%H:%M')),
+                        'client': cmd.get('Client', 'Client'),
+                        'plats': [p.strip() for p in cmd.get('Plats', '').split('+') if p.strip()],
+                        'avis': cmd.get('Avis', ''),
+                        'paiement': cmd.get('Paiement', 'Non spécifié')
+                    }
+                    fichier = generer_recu(commande_info)
+                    messagebox.showinfo("Succès", f"✅ Reçu généré avec succès !\n\nFichier : {os.path.basename(fichier)}")
+                    if fenetre:
+                        fenetre.destroy()
+                    return
+            messagebox.showerror("Erreur", "Commande non trouvée.")
+        except Exception as e:
+            messagebox.showerror("Erreur", f"❌ Erreur lors de la génération du PDF : {str(e)}")
+
+    # ==============================================================
+    # AUTRES MÉTHODES DE GESTION DES COMMANDES
+    # ==============================================================
 
     def formater_plats(self, plats_str):
         if not plats_str:
@@ -982,13 +888,8 @@ Total TTC : {format_price(total_ttc)}
                 resultat += f"   • {plat}\n"
         return resultat
 
-    def imprimer_recu_depuis_details(self):
-        if hasattr(self, 'selected_commande_id') and self.selected_commande_id:
-            imprimer_recu_depuis_commande(self.selected_commande_id, self)
-        else:
-            messagebox.showwarning("Aucune commande", "Veuillez sélectionner une commande.")
-
     def imprimer_recu_selectionne(self):
+        """Imprime un reçu pour la commande sélectionnée (ancienne méthode)."""
         selection = self.tableau_commandes.selection()
         if not selection:
             messagebox.showwarning("Aucune selection", "Veuillez selectionner une commande.")
@@ -1030,9 +931,8 @@ Total TTC : {format_price(total_ttc)}
         
         self.appliquer_filtres_commandes()
         
-        if self.details_pane_added:
-            self.paned.remove(self.cadre_droite)
-            self.details_pane_added = False
+        # Réinitialiser la sélection
+        self.commande_selectionnee_id = None
         
         messagebox.showinfo("Succes", f"✅ {len(ids_a_supprimer)} commande(s) supprimee(s).")
 
@@ -1307,7 +1207,7 @@ Total TTC : {format_price(total_ttc)}
         messagebox.showinfo("Succes", f"✅ Depense n°{id_a_supprimer} supprimee.")
 
     # ==============================================================
-    # ONGLET 4 : BILAN
+    # ONGLET 4 : BILAN (avec bouton de génération de rapport PDF)
     # ==============================================================
     def construire_onglet_bilan(self):
         cadre = self.onglet_bilan
@@ -1405,9 +1305,15 @@ Total TTC : {format_price(total_ttc)}
         self.bilan_date_fin.insert(0, date.today().isoformat())
         self.bilan_date_fin.config(state="disabled")
 
+        # Bouton Calculer le bilan
         ttk.Button(cadre_periode, text="📊 Calculer le bilan", 
                   command=self.calculer_et_afficher_bilan,
-                  style='Accent.TButton').pack(pady=10)
+                  style='Accent.TButton').pack(pady=5)
+
+        # Nouveau bouton : Générer rapport PDF
+        ttk.Button(cadre_periode, text="📊 Générer rapport PDF", 
+                  command=self.generer_rapport_bilan_pdf,
+                  style='Print.TButton').pack(pady=5)
 
         cadre_resultats = ttk.LabelFrame(cadre_contenu, text="📈 Details", padding=15)
         cadre_resultats.pack(anchor="w", pady=10, fill="both", expand=True)
@@ -1498,6 +1404,359 @@ Total TTC : {format_price(total_ttc)}
         else:
             self.text_details_depenses.insert(tk.END, "Aucune depense sur cette periode.")
         self.text_details_depenses.config(state="disabled")
+
+    def generer_rapport_bilan_pdf(self):
+        """Génère un rapport PDF des entrées et sorties sur la période sélectionnée."""
+        periode = self.combo_periode_bilan.get()
+        date_debut = None
+        date_fin = None
+        
+        # Déterminer les dates selon la période
+        if periode == "Personnalisee":
+            date_debut = self.bilan_date_debut.get().strip()
+            date_fin = self.bilan_date_fin.get().strip()
+            if not date_debut or not date_fin:
+                messagebox.showwarning("Dates manquantes", "Veuillez saisir les dates de debut et de fin.")
+                return
+        else:
+            aujourd_hui = date.today()
+            if periode == "Aujourd'hui":
+                date_debut = aujourd_hui.isoformat()
+                date_fin = aujourd_hui.isoformat()
+            elif periode == "Cette semaine":
+                debut_semaine = aujourd_hui - timedelta(days=aujourd_hui.weekday())
+                date_debut = debut_semaine.isoformat()
+                date_fin = (debut_semaine + timedelta(days=6)).isoformat()
+            elif periode == "Ce mois":
+                date_debut = aujourd_hui.replace(day=1).isoformat()
+                next_month = aujourd_hui.replace(day=28) + timedelta(days=4)
+                date_fin = (next_month - timedelta(days=next_month.day)).isoformat()
+            elif periode == "Ce trimestre":
+                trimestre = (aujourd_hui.month - 1) // 3
+                mois_debut = trimestre * 3 + 1
+                date_debut = aujourd_hui.replace(month=mois_debut, day=1).isoformat()
+                mois_fin = mois_debut + 2
+                if mois_fin > 12:
+                    mois_fin = 12
+                date_fin = aujourd_hui.replace(month=mois_fin, day=1) + timedelta(days=32)
+                date_fin = date_fin.replace(day=1) - timedelta(days=1)
+                date_fin = date_fin.isoformat()
+            elif periode == "Cette année":
+                date_debut = aujourd_hui.replace(month=1, day=1).isoformat()
+                date_fin = aujourd_hui.replace(month=12, day=31).isoformat()
+            else:  # Toutes
+                date_debut = None
+                date_fin = None
+
+        # Récupérer les données
+        commandes = charger_commandes()
+        depenses = charger_depenses()
+
+        def filtrer_par_periode(item_date):
+            if not date_debut or not date_fin:
+                return True
+            try:
+                d = datetime.strptime(item_date, "%Y-%m-%d").date()
+                debut = datetime.strptime(date_debut, "%Y-%m-%d").date()
+                fin = datetime.strptime(date_fin, "%Y-%m-%d").date()
+                return debut <= d <= fin
+            except:
+                return False
+
+        commandes_filtrees = [c for c in commandes if filtrer_par_periode(c.get("Date", ""))]
+        depenses_filtrees = [d for d in depenses if filtrer_par_periode(d.get("Date", ""))]
+
+        total_entrees = sum(float(c.get("Total TTC (€)", c.get("Total (€)", "0"))) for c in commandes_filtrees)
+        total_sorties = sum(float(d["Montant (€)"]) for d in depenses_filtrees)
+        solde = total_entrees - total_sorties
+
+        # Générer le PDF
+        try:
+            now = datetime.now().strftime("%Y%m%d_%H%M%S")
+            nom_fichier = f"rapport_bilan_{now}.pdf"
+            chemin = os.path.join(get_dossier_recus(), nom_fichier)
+
+            doc = SimpleDocTemplate(chemin, pagesize=A4,
+                                    rightMargin=20, leftMargin=20,
+                                    topMargin=20, bottomMargin=20)
+            styles = getSampleStyleSheet()
+            style_normal = styles['Normal']
+            style_heading = styles['Heading1']
+            style_heading2 = styles['Heading2']
+            style_heading.alignment = TA_CENTER
+
+            story = []
+
+            # Titre
+            story.append(Paragraph("Rapport financier - Chez Sall", style_heading))
+            story.append(Spacer(1, 12))
+
+            # Période
+            if periode == "Personnalisee" and date_debut and date_fin:
+                story.append(Paragraph(f"Période du {date_debut} au {date_fin}", style_normal))
+            else:
+                story.append(Paragraph(f"Période : {periode}", style_normal))
+            story.append(Spacer(1, 12))
+
+            # Entrées
+            story.append(Paragraph("Entrées (Commandes)", style_heading2))
+            story.append(Spacer(1, 6))
+            if commandes_filtrees:
+                data = [["ID", "Date", "Client", "Plats", "Total TTC"]]
+                for c in commandes_filtrees:
+                    data.append([
+                        c.get("ID", ""),
+                        c.get("Date", ""),
+                        c.get("Client", ""),
+                        c.get("Plats", ""),
+                        f"{float(c.get('Total TTC (€)', c.get('Total (€)', '0'))):.2f}"
+                    ])
+                table = Table(data, colWidths=[40, 80, 100, 180, 70])
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ]))
+                story.append(table)
+                story.append(Spacer(1, 6))
+                story.append(Paragraph(f"Total Entrées: {total_entrees:.2f} FCFA", style_normal))
+            else:
+                story.append(Paragraph("Aucune commande sur cette période.", style_normal))
+            story.append(Spacer(1, 12))
+
+            # Sorties
+            story.append(Paragraph("Sorties (Dépenses)", style_heading2))
+            story.append(Spacer(1, 6))
+            if depenses_filtrees:
+                data = [["ID", "Date", "Type", "Description", "Montant"]]
+                for d in depenses_filtrees:
+                    data.append([
+                        d.get("ID", ""),
+                        d.get("Date", ""),
+                        d.get("Type", ""),
+                        d.get("Description", ""),
+                        f"{float(d['Montant (€)']):.2f}"
+                    ])
+                table = Table(data, colWidths=[40, 80, 100, 150, 70])
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ]))
+                story.append(table)
+                story.append(Spacer(1, 6))
+                story.append(Paragraph(f"Total Sorties: {total_sorties:.2f} FCFA", style_normal))
+            else:
+                story.append(Paragraph("Aucune dépense sur cette période.", style_normal))
+            story.append(Spacer(1, 12))
+
+            # Solde
+            if solde >= 0:
+                solde_text = f"Solde: {solde:.2f} FCFA (Bénéfice)"
+            else:
+                solde_text = f"Solde: {solde:.2f} FCFA (Perte)"
+            story.append(Paragraph(solde_text, style_heading2))
+            story.append(Spacer(1, 12))
+
+            # Date d'impression
+            story.append(Paragraph(f"Rapport généré le {datetime.now().strftime('%d/%m/%Y %H:%M')}", style_normal))
+
+            doc.build(story)
+            messagebox.showinfo("Rapport PDF", f"✅ Rapport généré avec succès !\n\nFichier : {nom_fichier}\nDossier : recus/")
+        except Exception as e:
+            messagebox.showerror("Erreur", f"❌ Erreur lors de la génération du rapport : {str(e)}")
+
+    # ==============================================================
+    # AUTRES METHODES (PANIER, AJOUT, SUPPRESSION...)
+    # ==============================================================
+
+    def ajouter_plat_selectionne(self, event=None):
+        plat = self.selecteur_plat.get().strip()
+        if not plat:
+            messagebox.showwarning("Aucun plat", "Veuillez selectionner un plat dans la liste.")
+            return
+        
+        if plat not in MENU:
+            messagebox.showwarning("Plat invalide", f"'{plat}' n'est pas dans le menu.")
+            return
+        
+        dialog = tk.Toplevel(self)
+        dialog.title("Quantité")
+        dialog.geometry("300x150")
+        dialog.configure(bg=COLORS['light'])
+        dialog.transient(self)
+        dialog.grab_set()
+        
+        tk.Label(dialog, text=f"Quantité pour {plat} :", 
+                font=('Arial', 10), bg=COLORS['light']).pack(pady=10)
+        
+        spinbox = ttk.Spinbox(dialog, from_=1, to=20, width=10)
+        spinbox.set(1)
+        spinbox.pack(pady=5)
+        
+        def confirmer():
+            quantite = int(spinbox.get())
+            dialog.destroy()
+            self.ajouter_au_panier(plat, quantite)
+        
+        ttk.Button(dialog, text="Ajouter", command=confirmer, 
+                  style='Accent.TButton').pack(pady=10)
+        
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - dialog.winfo_width()) // 2
+        y = (dialog.winfo_screenheight() - dialog.winfo_height()) // 2
+        dialog.geometry(f"+{x}+{y}")
+
+    def ajouter_au_panier(self, plat, quantite):
+        for i, (p, q) in enumerate(self.panier_items):
+            if p == plat:
+                self.panier_items[i] = (p, q + quantite)
+                break
+        else:
+            self.panier_items.append((plat, quantite))
+        
+        self.actualiser_panier()
+        self.selecteur_plat.set("")
+
+    def actualiser_panier(self):
+        for widget in self.panier_frame.winfo_children():
+            widget.destroy()
+        
+        total_ht = 0
+        for plat, quantite in self.panier_items:
+            prix = MENU[plat] * quantite
+            total_ht += prix
+            
+            ligne = tk.Frame(self.panier_frame, bg=COLORS['light'])
+            ligne.pack(fill="x", pady=2)
+            
+            tk.Label(ligne, text=f"• {plat} x{quantite}", 
+                    font=('Arial', 10), bg=COLORS['light']).pack(side="left", padx=5)
+            tk.Label(ligne, text=f"={format_price(prix)}", 
+                    font=('Arial', 10), bg=COLORS['light'], fg=COLORS['primary']).pack(side="left", padx=5)
+            
+            ttk.Button(ligne, text="✕", width=3,
+                      command=lambda p=plat: self.supprimer_du_panier(p)).pack(side="right", padx=5)
+        
+        tva = total_ht * TVA
+        total_ttc = total_ht + tva
+        
+        self.label_total_ht.config(text=f"Total HT : {format_price(total_ht)}")
+        self.label_tva.config(text=f"TVA (18%) : {format_price(tva)}")
+        self.label_total_ttc.config(text=f"Total TTC : {format_price(total_ttc)}")
+
+    def supprimer_du_panier(self, plat):
+        self.panier_items = [(p, q) for p, q in self.panier_items if p != plat]
+        self.actualiser_panier()
+
+    def vider_panier(self):
+        if self.panier_items:
+            if messagebox.askyesno("Confirmation", "Vider le panier ?"):
+                self.panier_items = []
+                self.actualiser_panier()
+
+    def imprimer_recu_derniere_commande(self):
+        if self.derniere_commande_info:
+            afficher_apercu_recu(self.derniere_commande_info, self)
+        else:
+            messagebox.showwarning("Aucune commande", "Aucune commande récente à imprimer.")
+
+    def valider_commande(self):
+        nom_client = self.champ_client.get().strip()
+        
+        if not nom_client:
+            messagebox.showwarning("Information manquante", "Merci d'indiquer le nom du client.")
+            return
+        
+        if not self.panier_items:
+            messagebox.showwarning("Panier vide", "Le panier est vide. Ajoutez des plats.")
+            return
+        
+        paiement = self.combo_paiement.get()
+        
+        plats_affichage = []
+        plats_commande = []
+        total_ht = 0
+        
+        for plat, quantite in self.panier_items:
+            if quantite > 1:
+                plats_affichage.append(f"{plat} x{quantite}")
+            else:
+                plats_affichage.append(plat)
+            plats_commande.extend([plat] * quantite)
+            total_ht += MENU[plat] * quantite
+        
+        avis = self.combo_avis.get()
+        
+        # Enregistrer la commande
+        nouvel_id, total_ht, tva, total_ttc = ajouter_commande_fichier(
+            nom_client, plats_affichage, total_ht, avis, paiement
+        )
+        
+        # Stocker les infos pour le reçu
+        self.derniere_commande_info = {
+            'id': str(nouvel_id),
+            'date': date.today().strftime('%d/%m/%Y'),
+            'heure': datetime.now().strftime('%H:%M'),
+            'client': nom_client,
+            'plats': plats_affichage,
+            'avis': avis,
+            'paiement': paiement
+        }
+        
+        # Activer le bouton Reçu
+        self.btn_imprimer_recu.config(state="normal")
+        
+        # Sauvegarder les données pour le message
+        client = nom_client
+        plats = plats_affichage
+        total_ht_val = total_ht
+        tva_val = tva
+        total_ttc_val = total_ttc
+        paiement_val = paiement
+        avis_val = avis
+        id_commande = nouvel_id
+        
+        # Réinitialisation des champs
+        self.champ_client.delete(0, tk.END)
+        self.panier_items = []
+        self.actualiser_panier()
+        self.combo_avis.current(0)
+        self.combo_paiement.current(0)
+        self.selecteur_plat.set("")
+        
+        self.label_total_ht.config(text="Total HT : 0 FCFA")
+        self.label_tva.config(text="TVA (18%) : 0 FCFA")
+        self.label_total_ttc.config(text="Total TTC : 0 FCFA")
+        
+        # Message de confirmation
+        messagebox.showinfo("Commande enregistree",
+                            f"✅ Commande enregistree !\n\n"
+                            f"N°: #{id_commande}\n"
+                            f"Client : {client}\n"
+                            f"Plats : {', '.join(plats)}\n"
+                            f"Total HT : {format_price(total_ht_val)}\n"
+                            f"TVA (18%) : {format_price(tva_val)}\n"
+                            f"Total TTC : {format_price(total_ttc_val)}\n"
+                            f"Moyen de paiement : {paiement_val}\n"
+                            f"Avis : {avis_val}")
+        
+        if messagebox.askyesno("Reçu", "Voulez-vous imprimer un reçu pour cette commande ?"):
+            afficher_apercu_recu(self.derniere_commande_info, self)
+        
+        self.appliquer_filtres_commandes()
 
 
 if __name__ == "__main__":
