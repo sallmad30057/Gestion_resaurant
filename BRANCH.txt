@@ -1,0 +1,19 @@
+==================================================
+🌿 BRANCHE CODING - EN DÉVELOPPEMENT
+==================================================
+
+Cette branche contient le code en cours de développement.
+Les modifications ici sont en cours de test.
+
+📌 Dernière mise à jour : $(date)
+👤 Auteur : $(whoami)
+📍 Dépôt : Gestion_resaurant
+
+⚠️ NE PAS UTILISER EN PRODUCTION ! ⚠️
+
+Pour voir les différences avec main :
+git diff main..coding
+
+Pour fusionner dans main :
+gh pr create --base main --head coding
+==================================================
