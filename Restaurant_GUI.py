@@ -13,6 +13,13 @@ from datetime import date, datetime, timedelta
 import subprocess
 import platform
 
+# Imports pour le rapport PDF
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+
 from Restaurant import Serveur, Caissier, Manager, Restaurant
 from menu import MENU, TVA
 from recu import afficher_apercu_recu, generer_recu, imprimer_recu_depuis_commande, get_dossier_recus
@@ -293,7 +300,7 @@ class FenetreRestaurant(tk.Tk):
         # Variable pour stocker l'ID de la dernière commande
         self.derniere_commande_id = None
         self.derniere_commande_info = None
-        self.commande_selectionnee_id = None  # ID de la commande sélectionnée
+        self.commande_selectionnee_id = None
 
     def appliquer_style(self):
         """Applique un style moderne a l'interface."""
@@ -1200,7 +1207,7 @@ Total TTC : {format_price(total_ttc)}
         messagebox.showinfo("Succes", f"✅ Depense n°{id_a_supprimer} supprimee.")
 
     # ==============================================================
-    # ONGLET 4 : BILAN
+    # ONGLET 4 : BILAN (avec bouton de génération de rapport PDF)
     # ==============================================================
     def construire_onglet_bilan(self):
         cadre = self.onglet_bilan
@@ -1298,9 +1305,15 @@ Total TTC : {format_price(total_ttc)}
         self.bilan_date_fin.insert(0, date.today().isoformat())
         self.bilan_date_fin.config(state="disabled")
 
+        # Bouton Calculer le bilan
         ttk.Button(cadre_periode, text="📊 Calculer le bilan", 
                   command=self.calculer_et_afficher_bilan,
-                  style='Accent.TButton').pack(pady=10)
+                  style='Accent.TButton').pack(pady=5)
+
+        # Nouveau bouton : Générer rapport PDF
+        ttk.Button(cadre_periode, text="📊 Générer rapport PDF", 
+                  command=self.generer_rapport_bilan_pdf,
+                  style='Print.TButton').pack(pady=5)
 
         cadre_resultats = ttk.LabelFrame(cadre_contenu, text="📈 Details", padding=15)
         cadre_resultats.pack(anchor="w", pady=10, fill="both", expand=True)
@@ -1391,6 +1404,179 @@ Total TTC : {format_price(total_ttc)}
         else:
             self.text_details_depenses.insert(tk.END, "Aucune depense sur cette periode.")
         self.text_details_depenses.config(state="disabled")
+
+    def generer_rapport_bilan_pdf(self):
+        """Génère un rapport PDF des entrées et sorties sur la période sélectionnée."""
+        periode = self.combo_periode_bilan.get()
+        date_debut = None
+        date_fin = None
+        
+        # Déterminer les dates selon la période
+        if periode == "Personnalisee":
+            date_debut = self.bilan_date_debut.get().strip()
+            date_fin = self.bilan_date_fin.get().strip()
+            if not date_debut or not date_fin:
+                messagebox.showwarning("Dates manquantes", "Veuillez saisir les dates de debut et de fin.")
+                return
+        else:
+            aujourd_hui = date.today()
+            if periode == "Aujourd'hui":
+                date_debut = aujourd_hui.isoformat()
+                date_fin = aujourd_hui.isoformat()
+            elif periode == "Cette semaine":
+                debut_semaine = aujourd_hui - timedelta(days=aujourd_hui.weekday())
+                date_debut = debut_semaine.isoformat()
+                date_fin = (debut_semaine + timedelta(days=6)).isoformat()
+            elif periode == "Ce mois":
+                date_debut = aujourd_hui.replace(day=1).isoformat()
+                next_month = aujourd_hui.replace(day=28) + timedelta(days=4)
+                date_fin = (next_month - timedelta(days=next_month.day)).isoformat()
+            elif periode == "Ce trimestre":
+                trimestre = (aujourd_hui.month - 1) // 3
+                mois_debut = trimestre * 3 + 1
+                date_debut = aujourd_hui.replace(month=mois_debut, day=1).isoformat()
+                mois_fin = mois_debut + 2
+                if mois_fin > 12:
+                    mois_fin = 12
+                date_fin = aujourd_hui.replace(month=mois_fin, day=1) + timedelta(days=32)
+                date_fin = date_fin.replace(day=1) - timedelta(days=1)
+                date_fin = date_fin.isoformat()
+            elif periode == "Cette année":
+                date_debut = aujourd_hui.replace(month=1, day=1).isoformat()
+                date_fin = aujourd_hui.replace(month=12, day=31).isoformat()
+            else:  # Toutes
+                date_debut = None
+                date_fin = None
+
+        # Récupérer les données
+        commandes = charger_commandes()
+        depenses = charger_depenses()
+
+        def filtrer_par_periode(item_date):
+            if not date_debut or not date_fin:
+                return True
+            try:
+                d = datetime.strptime(item_date, "%Y-%m-%d").date()
+                debut = datetime.strptime(date_debut, "%Y-%m-%d").date()
+                fin = datetime.strptime(date_fin, "%Y-%m-%d").date()
+                return debut <= d <= fin
+            except:
+                return False
+
+        commandes_filtrees = [c for c in commandes if filtrer_par_periode(c.get("Date", ""))]
+        depenses_filtrees = [d for d in depenses if filtrer_par_periode(d.get("Date", ""))]
+
+        total_entrees = sum(float(c.get("Total TTC (€)", c.get("Total (€)", "0"))) for c in commandes_filtrees)
+        total_sorties = sum(float(d["Montant (€)"]) for d in depenses_filtrees)
+        solde = total_entrees - total_sorties
+
+        # Générer le PDF
+        try:
+            now = datetime.now().strftime("%Y%m%d_%H%M%S")
+            nom_fichier = f"rapport_bilan_{now}.pdf"
+            chemin = os.path.join(get_dossier_recus(), nom_fichier)
+
+            doc = SimpleDocTemplate(chemin, pagesize=A4,
+                                    rightMargin=20, leftMargin=20,
+                                    topMargin=20, bottomMargin=20)
+            styles = getSampleStyleSheet()
+            style_normal = styles['Normal']
+            style_heading = styles['Heading1']
+            style_heading2 = styles['Heading2']
+            style_heading.alignment = TA_CENTER
+
+            story = []
+
+            # Titre
+            story.append(Paragraph("Rapport financier - Chez Sall", style_heading))
+            story.append(Spacer(1, 12))
+
+            # Période
+            if periode == "Personnalisee" and date_debut and date_fin:
+                story.append(Paragraph(f"Période du {date_debut} au {date_fin}", style_normal))
+            else:
+                story.append(Paragraph(f"Période : {periode}", style_normal))
+            story.append(Spacer(1, 12))
+
+            # Entrées
+            story.append(Paragraph("Entrées (Commandes)", style_heading2))
+            story.append(Spacer(1, 6))
+            if commandes_filtrees:
+                data = [["ID", "Date", "Client", "Plats", "Total TTC"]]
+                for c in commandes_filtrees:
+                    data.append([
+                        c.get("ID", ""),
+                        c.get("Date", ""),
+                        c.get("Client", ""),
+                        c.get("Plats", ""),
+                        f"{float(c.get('Total TTC (€)', c.get('Total (€)', '0'))):.2f}"
+                    ])
+                table = Table(data, colWidths=[40, 80, 100, 180, 70])
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ]))
+                story.append(table)
+                story.append(Spacer(1, 6))
+                story.append(Paragraph(f"Total Entrées: {total_entrees:.2f} FCFA", style_normal))
+            else:
+                story.append(Paragraph("Aucune commande sur cette période.", style_normal))
+            story.append(Spacer(1, 12))
+
+            # Sorties
+            story.append(Paragraph("Sorties (Dépenses)", style_heading2))
+            story.append(Spacer(1, 6))
+            if depenses_filtrees:
+                data = [["ID", "Date", "Type", "Description", "Montant"]]
+                for d in depenses_filtrees:
+                    data.append([
+                        d.get("ID", ""),
+                        d.get("Date", ""),
+                        d.get("Type", ""),
+                        d.get("Description", ""),
+                        f"{float(d['Montant (€)']):.2f}"
+                    ])
+                table = Table(data, colWidths=[40, 80, 100, 150, 70])
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ]))
+                story.append(table)
+                story.append(Spacer(1, 6))
+                story.append(Paragraph(f"Total Sorties: {total_sorties:.2f} FCFA", style_normal))
+            else:
+                story.append(Paragraph("Aucune dépense sur cette période.", style_normal))
+            story.append(Spacer(1, 12))
+
+            # Solde
+            if solde >= 0:
+                solde_text = f"Solde: {solde:.2f} FCFA (Bénéfice)"
+            else:
+                solde_text = f"Solde: {solde:.2f} FCFA (Perte)"
+            story.append(Paragraph(solde_text, style_heading2))
+            story.append(Spacer(1, 12))
+
+            # Date d'impression
+            story.append(Paragraph(f"Rapport généré le {datetime.now().strftime('%d/%m/%Y %H:%M')}", style_normal))
+
+            doc.build(story)
+            messagebox.showinfo("Rapport PDF", f"✅ Rapport généré avec succès !\n\nFichier : {nom_fichier}\nDossier : recus/")
+        except Exception as e:
+            messagebox.showerror("Erreur", f"❌ Erreur lors de la génération du rapport : {str(e)}")
 
     # ==============================================================
     # AUTRES METHODES (PANIER, AJOUT, SUPPRESSION...)

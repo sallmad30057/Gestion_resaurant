@@ -4,13 +4,13 @@
 git checkout main
 
 2. Récupérer le fichier depuis la branche coding
-git checkout coding -- NomDuFichier.py
+git checkout coding -- Restaurant_GUI.py
 
 3. Ajouter le fichier à l'index
-git add NomDuFichier.py
+git add Restaurant_GUI.py
 
 4. Committer le fichier sur main
-git commit -m "Ajout du fichier NomDuFichier.py depuis coding"
+git commit -m "Ajout du fichier Restaurant_GUI.py "
 
 5. Pousser sur main
 git push origin main
