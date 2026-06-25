@@ -1,19 +1,340 @@
-==================================================
-🌿 BRANCHE CODING - EN DÉVELOPPEMENT
-==================================================
 
-Cette branche contient le code en cours de développement.
-Les modifications ici sont en cours de test.
+# Créer le fichier BRANCH.txt avec toutes les informations
+cat > BRANCH.txt << 'EOF'
+================================================================
+🌿 BRANCHE CODING - GUIDE COMPLET
+================================================================
 
-📌 Dernière mise à jour : $(date)
-👤 Auteur : $(whoami)
-📍 Dépôt : Gestion_resaurant
+📌 STATUT : ⚠️ EN DÉVELOPPEMENT
+📅 DERNIÈRE MISE À JOUR : $(date '+%Y-%m-%d %H:%M:%S')
+👤 AUTEUR : sallmad30057
+🏠 DÉPÔT : https://github.com/sallmad30057/Gestion_resaurant
 
-⚠️ NE PAS UTILISER EN PRODUCTION ! ⚠️
+================================================================
+1. STRUCTURE DES BRANCHES
+================================================================
 
-Pour voir les différences avec main :
-git diff main..coding
+Le projet utilise deux branches principales :
 
-Pour fusionner dans main :
-gh pr create --base main --head coding
-==================================================
+┌─────────────────────────────────────────────────────────────────┐
+│  MAIN (branche principale)                                     │
+│  ├── Code stable et testé                                     │
+│  ├── Version de production                                    │
+│  └── NE PAS modifier directement                              │
+└─────────────────────────────────────────────────────────────────┘
+                              ▲
+                              │
+                              │  Pull Request
+                              │
+┌─────────────────────────────────────────────────────────────────┐
+│  CODING (branche de développement)                             │
+│  ├── Code en cours de développement                            │
+│  ├── Toutes les modifications                                  │
+│  └── Tests avant fusion dans main                              │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================
+2. COMMANDES DE BASE
+================================================================
+
+📌 VÉRIFIER LA BRANCHE ACTUELLE
+┌─────────────────────────────────────────────────────────────────┐
+│  git branch                                                    │
+│  git branch --show-current                                     │
+│  # Affiche la branche sur laquelle vous êtes                   │
+└─────────────────────────────────────────────────────────────────┘
+
+📌 VOIR TOUTES LES BRANCHES
+┌─────────────────────────────────────────────────────────────────┐
+│  git branch -a                                                 │
+│  # Affiche toutes les branches (locales et distantes)          │
+│  # * coding  → branche actuelle                                │
+│  #   main    → branche principale                              │
+│  # remotes/origin/* → branches distantes                       │
+└─────────────────────────────────────────────────────────────────┘
+
+📌 CHANGER DE BRANCHE
+┌─────────────────────────────────────────────────────────────────┐
+│  git checkout main          # Aller sur main                   │
+│  git checkout coding        # Aller sur coding                 │
+│  git checkout -b nouvelle   # Créer et aller sur nouvelle      │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================
+3. TRAVAILLER SUR LA BRANCHE CODING
+================================================================
+
+📌 ÉTAPE 1 : SE METTRE SUR CODING
+┌─────────────────────────────────────────────────────────────────┐
+│  git checkout coding                                            │
+│  # Vérifier : git branch --show-current                        │
+│  # Doit afficher : coding                                      │
+└─────────────────────────────────────────────────────────────────┘
+
+📌 ÉTAPE 2 : RÉCUPÉRER LES DERNIÈRES MODIFICATIONS
+┌─────────────────────────────────────────────────────────────────┐
+│  git pull origin coding                                        │
+│  # Récupère les modifications distantes sur coding             │
+└─────────────────────────────────────────────────────────────────┘
+
+📌 ÉTAPE 3 : FAIRE DES MODIFICATIONS
+┌─────────────────────────────────────────────────────────────────┐
+│  # Modifier vos fichiers (ex: Restaurant_GUI.py)              │
+│  # Ajouter de nouvelles fonctionnalités                        │
+│  # Corriger des bugs                                           │
+└─────────────────────────────────────────────────────────────────┘
+
+📌 ÉTAPE 4 : AJOUTER LES MODIFICATIONS
+┌─────────────────────────────────────────────────────────────────┐
+│  git add .                                                     │
+│  # Ajoute tous les fichiers modifiés                           │
+│  # OU                                                          │
+│  git add nom_du_fichier.py                                     │
+│  # Ajoute un fichier spécifique                                │
+└─────────────────────────────────────────────────────────────────┘
+
+📌 ÉTAPE 5 : COMMITTER LES MODIFICATIONS
+┌─────────────────────────────────────────────────────────────────┐
+│  git commit -m "Description des modifications"                 │
+│  # Exemple :                                                   │
+│  git commit -m "Ajout de la fonctionnalité d'impression PDF"   │
+│  # OU avec un message plus détaillé :                         │
+│  git commit -m "Ajout de la fonctionnalité d'impression PDF
+│                                                                 │
+│  - Génération de reçus en PDF                                  │
+│  - Aperçu avant impression                                     │
+│  - Dossier recus/ créé automatiquement"                       │
+└─────────────────────────────────────────────────────────────────┘
+
+📌 ÉTAPE 6 : POUSSER SUR GITHUB
+┌─────────────────────────────────────────────────────────────────┐
+│  git push origin coding                                        │
+│  # Pousse les modifications sur la branche coding distante     │
+│  # OU simplifié :                                              │
+│  git push                                                      │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================
+4. SYNCHRONISER AVEC LA BRANCHE MAIN
+================================================================
+
+📌 RÉCUPÉRER LES MODIFICATIONS DE MAIN
+┌─────────────────────────────────────────────────────────────────┐
+│  # 1. Aller sur main                                           │
+│  git checkout main                                             │
+│                                                                 │
+│  # 2. Récupérer les modifications                              │
+│  git pull origin main                                          │
+│                                                                 │
+│  # 3. Revenir sur coding                                       │
+│  git checkout coding                                           │
+│                                                                 │
+│  # 4. Fusionner les changements de main dans coding           │
+│  git merge main                                                │
+│                                                                 │
+│  # 5. Résoudre les conflits si nécessaire                      │
+│  # (voir section Conflits)                                    │
+│                                                                 │
+│  # 6. Pousser les modifications                                │
+│  git push origin coding                                        │
+└─────────────────────────────────────────────────────────────────┘
+
+📌 FUSIONNER CODING DANS MAIN (Pull Request)
+┌─────────────────────────────────────────────────────────────────┐
+│  # MÉTHODE 1 : Via GitHub CLI                                  │
+│  gh pr create --base main --head coding                        │
+│                                                                 │
+│  # MÉTHODE 2 : Via VS Code                                     │
+│  1. Ctrl+Shift+P                                               │
+│  2. GitHub: Create Pull Request                                │
+│  3. Sélectionner base: main, compare: coding                   │
+│                                                                 │
+│  # MÉTHODE 3 : Via GitHub web                                  │
+│  1. Aller sur le dépôt GitHub                                  │
+│  2. Cliquer sur "Pull requests"                               │
+│  3. Cliquer sur "New pull request"                            │
+│  4. Sélectionner base: main, compare: coding                   │
+│  5. Créer et fusionner                                         │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================
+5. GÉRER LES CONFLITS
+================================================================
+
+📌 IDENTIFIER UN CONFLIT
+┌─────────────────────────────────────────────────────────────────┐
+│  git status                                                    │
+│  # Affiche : both modified: nom_du_fichier.py                  │
+└─────────────────────────────────────────────────────────────────┘
+
+📌 RÉSOUDRE UN CONFLIT
+┌─────────────────────────────────────────────────────────────────┐
+│  # 1. Ouvrir le fichier en conflit                            │
+│  # VS Code affiche les sections :                              │
+│  # <<<<<<< HEAD     → vos modifications                       │
+│  # =======           → séparateur                              │
+│  # >>>>>>> main     → modifications de main                    │
+│                                                                 │
+│  # 2. Choisir la version à garder                              │
+│  # - Garder les deux                                           │
+│  # - Garder l'une des deux                                     │
+│  # - Fusionner manuellement                                    │
+│                                                                 │
+│  # 3. Supprimer les marqueurs (<<<<<<<, =======, >>>>>>>)     │
+│                                                                 │
+│  # 4. Ajouter le fichier résolu                                │
+│  git add nom_du_fichier.py                                     │
+│                                                                 │
+│  # 5. Continuer le merge                                       │
+│  git merge --continue                                          │
+│                                                                 │
+│  # 6. OU annuler le merge                                      │
+│  git merge --abort                                             │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================
+6. COMMANDES UTILES AU QUOTIDIEN
+================================================================
+
+📌 VÉRIFICATIONS
+┌─────────────────────────────────────────────────────────────────┐
+│  git status         # Voir l'état des fichiers                 │
+│  git log --oneline  # Voir les commits                         │
+│  git log --oneline -5 # Voir les 5 derniers commits            │
+│  git diff           # Voir les modifications non commitées     │
+│  git diff main..coding # Voir les différences entre branches   │
+└─────────────────────────────────────────────────────────────────┘
+
+📌 ANNULER DES MODIFICATIONS
+┌─────────────────────────────────────────────────────────────────┐
+│  git restore nom_fichier.py     # Annuler les modifications     │
+│  git restore .                  # Annuler toutes les modifs     │
+│  git reset HEAD nom_fichier.py  # Désajouter un fichier        │
+│  git reset --soft HEAD~1        # Annuler le dernier commit    │
+│  git reset --hard HEAD~1        # Annuler commit et modifs     │
+└─────────────────────────────────────────────────────────────────┘
+
+📌 BRANCHES
+┌─────────────────────────────────────────────────────────────────┐
+│  git branch          # Voir les branches locales               │
+│  git branch -a       # Voir toutes les branches                │
+│  git branch -d nom   # Supprimer une branche locale            │
+│  git push origin --delete nom  # Supprimer une branche distante│
+└─────────────────────────────────────────────────────────────────┘
+
+📌 PULL REQUESTS (GitHub CLI)
+┌─────────────────────────────────────────────────────────────────┐
+│  gh pr create --base main --head coding   # Créer une PR       │
+│  gh pr list                              # Voir les PRs        │
+│  gh pr view 1                            # Voir une PR         │
+│  gh pr merge 1                           # Fusionner une PR    │
+│  gh pr checkout 1                        # Tester une PR       │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================
+7. WORKFLOW COMPLET (EXEMPLE PRATIQUE)
+================================================================
+
+📌 SCÉNARIO : AJOUTER UNE NOUVELLE FONCTIONNALITÉ
+
+┌─────────────────────────────────────────────────────────────────┐
+│  # 1. Se mettre sur coding                                     │
+│  git checkout coding                                           │
+│                                                                 │
+│  # 2. Récupérer les dernières modifications                    │
+│  git pull origin coding                                        │
+│                                                                 │
+│  # 3. Créer une branche pour la fonctionnalité                 │
+│  git checkout -b feature/nouvelle-fonction                     │
+│                                                                 │
+│  # 4. Faire les modifications...                               │
+│  # Modifier les fichiers...                                    │
+│                                                                 │
+│  # 5. Ajouter et committer                                     │
+│  git add .                                                     │
+│  git commit -m "Ajout de la nouvelle fonctionnalité"           │
+│                                                                 │
+│  # 6. Pousser sur GitHub                                       │
+│  git push origin feature/nouvelle-fonction                     │
+│                                                                 │
+│  # 7. Créer une Pull Request                                   │
+│  gh pr create --base coding --head feature/nouvelle-fonction   │
+│                                                                 │
+│  # 8. Après fusion dans coding                                 │
+│  git checkout coding                                           │
+│  git pull origin coding                                        │
+│  git branch -d feature/nouvelle-fonction                       │
+│                                                                 │
+│  # 9. Envoyer dans main (quand prêt)                          │
+│  gh pr create --base main --head coding                       │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================
+8. ASTUCES ET BONNES PRATIQUES
+================================================================
+
+✅ À FAIRE
+┌─────────────────────────────────────────────────────────────────┐
+│  ✓ Toujours travailler sur coding                              │
+│  ✓ Faire des commits réguliers                                 │
+│  ✓ Utiliser des messages de commit clairs                      │
+│  ✓ Tester avant de fusionner dans main                         │
+│  ✓ Faire des Pull Requests pour main                          │
+│  ✓ Synchroniser régulièrement coding avec main                │
+└─────────────────────────────────────────────────────────────────┘
+
+❌ À ÉVITER
+┌─────────────────────────────────────────────────────────────────┐
+│  ✗ Travailler directement sur main                             │
+│  ✗ Faire des commits avec des messages vagues                 │
+│  ✗ Pousser sans avoir testé                                    │
+│  ✗ Fusionner sans Pull Request                                 │
+│  ✗ Ignorer les conflits                                        │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================
+9. COMMANDES RAPIDES (RÉSUMÉ)
+================================================================
+
+┌─────────────────────────────────────────────────────────────────┐
+│  # Se mettre sur coding                                        │
+│  git checkout coding                                           │
+│                                                                 │
+│  # Récupérer les modifications                                 │
+│  git pull origin coding                                        │
+│                                                                 │
+│  # Ajouter les modifications                                   │
+│  git add .                                                     │
+│                                                                 │
+│  # Committer                                                   │
+│  git commit -m "Message"                                       │
+│                                                                 │
+│  # Pousser                                                     │
+│  git push origin coding                                        │
+│                                                                 │
+│  # Voir l'état                                                 │
+│  git status                                                    │
+│                                                                 │
+│  # Voir les branches                                           │
+│  git branch -a                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================
+10. LIENS UTILES
+================================================================
+
+📎 RESSOURCES
+┌─────────────────────────────────────────────────────────────────┐
+│  📘 Documentation Git : https://git-scm.com/doc                │
+│  📘 GitHub Guides : https://guides.github.com/                 │
+│  📘 Git Cheat Sheet : https://education.github.com/git-cheat-sheet │
+│                                                                 │
+│  🏠 Dépôt : https://github.com/sallmad30057/Gestion_resaurant   │
+│  🌿 Branches : https://github.com/sallmad30057/Gestion_resaurant/branches │
+│  🔀 Pull Requests : https://github.com/sallmad30057/Gestion_resaurant/pulls │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================
+📌 DERNIÈRE MISE À JOUR : $(date '+%Y-%m-%d %H:%M:%S')
+================================================================
+EOF
