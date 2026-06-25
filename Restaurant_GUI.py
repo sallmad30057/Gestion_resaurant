@@ -1207,7 +1207,7 @@ Total TTC : {format_price(total_ttc)}
         messagebox.showinfo("Succes", f"✅ Depense n°{id_a_supprimer} supprimee.")
 
     # ==============================================================
-    # ONGLET 4 : BILAN (avec bouton de génération de rapport PDF)
+    # ONGLET 4 : BILAN AVEC RAPPORT PDF
     # ==============================================================
     def construire_onglet_bilan(self):
         cadre = self.onglet_bilan
@@ -1310,7 +1310,7 @@ Total TTC : {format_price(total_ttc)}
                   command=self.calculer_et_afficher_bilan,
                   style='Accent.TButton').pack(pady=5)
 
-        # Nouveau bouton : Générer rapport PDF
+        # Bouton Générer rapport PDF
         ttk.Button(cadre_periode, text="📊 Générer rapport PDF", 
                   command=self.generer_rapport_bilan_pdf,
                   style='Print.TButton').pack(pady=5)
@@ -1405,6 +1405,9 @@ Total TTC : {format_price(total_ttc)}
             self.text_details_depenses.insert(tk.END, "Aucune depense sur cette periode.")
         self.text_details_depenses.config(state="disabled")
 
+    # ==============================================================
+    # GÉNÉRATION DU RAPPORT PDF (CORRIGÉ)
+    # ==============================================================
     def generer_rapport_bilan_pdf(self):
         """Génère un rapport PDF des entrées et sorties sur la période sélectionnée."""
         periode = self.combo_periode_bilan.get()
@@ -1509,9 +1512,9 @@ Total TTC : {format_price(total_ttc)}
                         c.get("Date", ""),
                         c.get("Client", ""),
                         c.get("Plats", ""),
-                        f"{float(c.get('Total TTC (€)', c.get('Total (€)', '0'))):.2f}"
+                        format_price_table(float(c.get('Total TTC (€)', c.get('Total (€)', '0'))))
                     ])
-                table = Table(data, colWidths=[40, 80, 100, 180, 70])
+                table = Table(data, colWidths=[40, 80, 100, 180, 80])
                 table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -1525,7 +1528,7 @@ Total TTC : {format_price(total_ttc)}
                 ]))
                 story.append(table)
                 story.append(Spacer(1, 6))
-                story.append(Paragraph(f"Total Entrées: {total_entrees:.2f} FCFA", style_normal))
+                story.append(Paragraph(f"Total Entrées : {format_price(total_entrees)}", style_normal))
             else:
                 story.append(Paragraph("Aucune commande sur cette période.", style_normal))
             story.append(Spacer(1, 12))
@@ -1541,9 +1544,9 @@ Total TTC : {format_price(total_ttc)}
                         d.get("Date", ""),
                         d.get("Type", ""),
                         d.get("Description", ""),
-                        f"{float(d['Montant (€)']):.2f}"
+                        format_price_table(float(d['Montant (€)']))
                     ])
-                table = Table(data, colWidths=[40, 80, 100, 150, 70])
+                table = Table(data, colWidths=[40, 80, 100, 150, 80])
                 table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -1557,16 +1560,16 @@ Total TTC : {format_price(total_ttc)}
                 ]))
                 story.append(table)
                 story.append(Spacer(1, 6))
-                story.append(Paragraph(f"Total Sorties: {total_sorties:.2f} FCFA", style_normal))
+                story.append(Paragraph(f"Total Sorties : {format_price(total_sorties)}", style_normal))
             else:
                 story.append(Paragraph("Aucune dépense sur cette période.", style_normal))
             story.append(Spacer(1, 12))
 
             # Solde
             if solde >= 0:
-                solde_text = f"Solde: {solde:.2f} FCFA (Bénéfice)"
+                solde_text = f"Solde : {format_price(solde)} (Bénéfice)"
             else:
-                solde_text = f"Solde: {solde:.2f} FCFA (Perte)"
+                solde_text = f"Solde : {format_price(solde)} (Perte)"
             story.append(Paragraph(solde_text, style_heading2))
             story.append(Spacer(1, 12))
 
