@@ -1,11 +1,4 @@
-ID,Date,Heure,Client,Plats,Total HT (FCFA),TVA (FCFA),Total TTC (FCFA),Avis,Paiement
-1,2026-06-25,15:37,SapceX,Biere x4 + Cafe x2,24000.00,4320.00,28320.00,bon,Espèce
-2,2026-06-25,15:37,SapceX,Biere x4 + Cafe x2,24000.00,4320.00,28320.00,bon,Espèce
-3,2026-06-25,15:37,SapceX,Biere x4 + Cafe x2,24000.00,4320.00,28320.00,pimenté,Carte
-4,2026-06-25,15:37,SapceX,Biere x4 + Cafe x2,24000.00,4320.00,28320.00,pimenté,Carte
-5,2026-06-25,15:37,SapceX,Biere x4 + Cafe x2,24000.00,4320.00,28320.00,pimenté,Carte
-6,2026-06-25,15:37,SapceX,Biere x4 + Cafe x2,24000.00,4320.00,28320.00,pimenté,Carte
-7,2026-06-25,15:37,SapceX,Biere x4 + Cafe x2,24000.00,4320.00,28320.00,pimenté,Carte
-8,2026-06-25,15:37,SapceX,Biere x4 + Cafe x2,24000.00,4320.00,28320.00,pimenté,Carte
-9,2026-06-25,15:37,SapceX,Biere x4,20000.00,3600.00,23600.00,pimenté,Carte
-10,2026-06-25,15:37,SapceX,Biere x4,20000.00,3600.00,23600.00,bon,Carte
+ID,Date,Heure,Client,Plats,Total HT (€),TVA (€),Total TTC (€),Avis,Paiement
+1,2026-06-25,15:48,Google,Coca x1456,2912000.00,524160.00,3436160.00,bon,Carte
+2,2026-06-25,16:03,luc,Burrito,8000.00,1440.00,9440.00,bon,Espèce
+3,2026-06-25,16:08,f,Burrito,8000.00,1440.00,9440.00,bon,Espèce
