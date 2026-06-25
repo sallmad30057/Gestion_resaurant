@@ -15,7 +15,7 @@ import platform
 
 from Restaurant import Serveur, Caissier, Manager, Restaurant
 from menu import MENU, TVA
-from reçu import afficher_apercu_recu, generer_recu, imprimer_recu_depuis_commande, get_dossier_recus
+from recu import afficher_apercu_recu, generer_recu, imprimer_recu_depuis_commande, get_dossier_recus
 
 
 # ------------------------------------------------------------------

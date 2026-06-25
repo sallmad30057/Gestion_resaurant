@@ -1,14 +1,13 @@
-# Gestion_resaurant
 # Application de gestion de restaurant - Chez Sall
 
 ## Description
 
 Cette application gère un restaurant simple avec une interface graphique Tkinter et une logique métier séparée. Elle permet de :
-- saisir de nouvelles commandes
-- afficher l'historique des commandes avec des filtres
-- générer et afficher un aperçu de reçu
-- gérer les dépenses du restaurant
-- consulter un bilan financier pour le manager
+-Saisir de nouvelles commandes
+-afficher l'historique des commandes avec des filtres
+-générer et afficher un aperçu de reçu
+-gérer les dépenses du restaurant
+-consulter un bilan financier pour le manager
 
 L'application stocke les commandes dans `commandes.csv`, les dépenses dans `depenses.csv` et génère des reçus PDF dans le dossier `recus/`.
 
@@ -45,10 +44,10 @@ pip install reportlab
 python Restaurant_GUI.py
 ```
 
-3. Utiliser l'onglet `Nouvelle commande` pour saisir les commandes et générer un reçu.
-4. Aller dans l'onglet `Commandes` pour voir, filtrer, exporter ou supprimer les commandes.
-5. Aller dans l'onglet `Dépenses` pour enregistrer et filtrer les dépenses.
-6. Aller dans l'onglet `Bilan` pour afficher le bilan financier TTC (accessible au manager).
+-Utiliser l'onglet `Nouvelle commande` pour saisir les commandes et générer un reçu.
+-Aller dans l'onglet `Commandes` pour voir, filtrer, exporter ou supprimer les -commandes.
+-Aller dans l'onglet `Dépenses` pour enregistrer et filtrer les dépenses.
+-Aller dans l'onglet `Bilan` pour afficher le bilan financier TTC (accessible au manager).
 
 ## Fonctionnalités principales
 
