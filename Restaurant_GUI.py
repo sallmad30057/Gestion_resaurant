@@ -22,10 +22,10 @@ from recu import afficher_apercu_recu, generer_recu, imprimer_recu_depuis_comman
 # CONFIGURATION GENERALE
 # ------------------------------------------------------------------
 FICHIER_COMMANDES = "commandes.csv"
-COLONNES_COMMANDES = ["ID", "Date", "Heure", "Client", "Plats", "Total HT (€)", "TVA (€)", "Total TTC (€)", "Avis", "Paiement"]
+COLONNES_COMMANDES = ["ID", "Date", "Heure", "Client", "Plats", "Total HT (FCFA)", "TVA (FCFA)", "Total TTC (FCFA)", "Avis", "Paiement"]
 
 FICHIER_DEPENSES = "depenses.csv"
-COLONNES_DEPENSES = ["ID", "Date", "Type", "Description", "Montant (€)"]
+COLONNES_DEPENSES = ["ID", "Date", "Type", "Description", "Montant (FCFA)"]
 
 TYPES_DEPENSE = ["Salaire", "Loyer", "Électricité", "Eau", "Internet", "Ménage", "Autre"]
 PERIODES = ["Toutes", "Aujourd'hui", "Cette semaine", "Ce mois", "Ce trimestre", "Cette année"]
@@ -111,15 +111,15 @@ def migrer_ancien_fichier(anciennes_commandes):
             cmd["Paiement"] = "Non spécifié"
         cmd["ID"] = str(i)
         
-        if "Total HT (€)" not in cmd:
-            ancien_total = cmd.get("Total (€)", "0")
+        if "Total HT (FCFA)" not in cmd:
+            ancien_total = cmd.get("Total (FCFA)", "0")
             try:
                 total_ht = float(ancien_total)
             except:
                 total_ht = 0
-            cmd["Total HT (€)"] = str(total_ht)
-            cmd["TVA (€)"] = str(total_ht * TVA)
-            cmd["Total TTC (€)"] = str(total_ht * (1 + TVA))
+            cmd["Total HT (FCFA)"] = str(total_ht)
+            cmd["TVA (FCFA)"] = str(total_ht * TVA)
+            cmd["Total TTC (FCFA)"] = str(total_ht * (1 + TVA))
         
         nouvelles_commandes.append(cmd)
     
@@ -147,9 +147,9 @@ def ajouter_commande_fichier(client, plats, total_ht, avis, paiement):
         "Heure": datetime.now().strftime("%H:%M"),
         "Client": client,
         "Plats": " + ".join(plats),
-        "Total HT (€)": f"{total_ht:.2f}",
-        "TVA (€)": f"{tva:.2f}",
-        "Total TTC (€)": f"{total_ttc:.2f}",
+        "Total HT (FCFA)": f"{total_ht:.2f}",
+        "TVA (FCFA)": f"{tva:.2f}",
+        "Total TTC (FCFA)": f"{total_ttc:.2f}",
         "Avis": avis,
         "Paiement": paiement,
     })
@@ -181,7 +181,7 @@ def ajouter_depense_fichier(type_depense, description, montant):
         "Date": date.today().isoformat(),
         "Type": type_depense,
         "Description": description,
-        "Montant (€)": str(montant),
+        "Montant (FCFA)": str(montant),
     })
     sauvegarder_depenses(depenses)
 
@@ -209,16 +209,16 @@ def calculer_bilan_financier(demandeur, periode="Toutes", date_debut=None, date_
                 return False
         return date_dans_periode(item_date, periode)
 
-    entrees = sum(float(c.get("Total TTC (€)", c.get("Total (€)", "0"))) 
+    entrees = sum(float(c.get("Total TTC (FCFA)", c.get("Total (FCFA)", "0"))) 
                   for c in commandes if filtrer_par_periode(c.get("Date", "")))
     
-    sorties = sum(float(d["Montant (€)"]) for d in depenses if filtrer_par_periode(d["Date"]))
+    sorties = sum(float(d["Montant (FCFA)"]) for d in depenses if filtrer_par_periode(d["Date"]))
     
     depenses_par_type = {}
     for d in depenses:
         if filtrer_par_periode(d["Date"]):
             type_dep = d["Type"]
-            depenses_par_type[type_dep] = depenses_par_type.get(type_dep, 0) + float(d["Montant (€)"])
+            depenses_par_type[type_dep] = depenses_par_type.get(type_dep, 0) + float(d["Montant (FCFA)"])
     
     return entrees, sorties, entrees - sorties, depenses_par_type
 
@@ -472,15 +472,15 @@ class FenetreRestaurant(tk.Tk):
         cadre_total = tk.Frame(cadre_contenu, bg=COLORS['light'])
         cadre_total.pack(anchor="w", pady=10, fill="x")
         
-        self.label_total_ht = tk.Label(cadre_total, text="Total HT : 0.00€", 
+        self.label_total_ht = tk.Label(cadre_total, text="Total HT : 0.00FCFA", 
                                        font=('Arial', 11, 'bold'), fg=COLORS['primary'], bg=COLORS['light'])
         self.label_total_ht.pack(anchor="w")
         
-        self.label_tva = tk.Label(cadre_total, text="TVA (18%) : 0.00€", 
+        self.label_tva = tk.Label(cadre_total, text="TVA (18%) : 0.00FCFA", 
                                   font=('Arial', 11), fg=COLORS['warning'], bg=COLORS['light'])
         self.label_tva.pack(anchor="w")
         
-        self.label_total_ttc = tk.Label(cadre_total, text="Total TTC : 0.00€", 
+        self.label_total_ttc = tk.Label(cadre_total, text="Total TTC : 0.00FCFA", 
                                         font=('Arial', 14, 'bold'), fg=COLORS['success'], bg=COLORS['light'])
         self.label_total_ttc.pack(anchor="w", pady=(5, 0))
 
@@ -576,7 +576,7 @@ class FenetreRestaurant(tk.Tk):
             
             tk.Label(ligne, text=f"• {plat} x{quantite}", 
                     font=('Arial', 10), bg=COLORS['light']).pack(side="left", padx=5)
-            tk.Label(ligne, text=f"={prix:.2f}€", 
+            tk.Label(ligne, text=f"={prix:.2f}FCFA", 
                     font=('Arial', 10), bg=COLORS['light'], fg=COLORS['primary']).pack(side="left", padx=5)
             
             ttk.Button(ligne, text="✕", width=3,
@@ -585,9 +585,9 @@ class FenetreRestaurant(tk.Tk):
         tva = total_ht * TVA
         total_ttc = total_ht + tva
         
-        self.label_total_ht.config(text=f"Total HT : {total_ht:.2f}€")
-        self.label_tva.config(text=f"TVA (18%) : {tva:.2f}€")
-        self.label_total_ttc.config(text=f"Total TTC : {total_ttc:.2f}€")
+        self.label_total_ht.config(text=f"Total HT : {total_ht:.2f}FCFA")
+        self.label_tva.config(text=f"TVA (18%) : {tva:.2f}FCFA")
+        self.label_total_ttc.config(text=f"Total TTC : {total_ttc:.2f}FCFA")
 
     def supprimer_du_panier(self, plat):
         """Supprime un plat du panier."""
@@ -664,9 +664,9 @@ class FenetreRestaurant(tk.Tk):
                             f"N°: #{nouvel_id}\n"
                             f"Client : {nom_client}\n"
                             f"Plats : {', '.join(plats_affichage)}\n"
-                            f"Total HT : {total_ht:.2f}€\n"
-                            f"TVA (18%) : {tva:.2f}€\n"
-                            f"Total TTC : {total_ttc:.2f}€\n"
+                            f"Total HT : {total_ht:.2f}FCFA\n"
+                            f"TVA (18%) : {tva:.2f}FCFA\n"
+                            f"Total TTC : {total_ttc:.2f}FCFA\n"
                             f"Moyen de paiement : {paiement}\n"
                             f"Avis : {avis}")
         
@@ -930,9 +930,9 @@ class FenetreRestaurant(tk.Tk):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💰 TOTAUX
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Total HT : {cmd.get('Total HT (€)', '0.00')}€
-TVA (18%) : {cmd.get('TVA (€)', '0.00')}€
-Total TTC : {cmd.get('Total TTC (€)', '0.00')}€
+Total HT : {cmd.get('Total HT (FCFA)', '0.00')}FCFA
+TVA (18%) : {cmd.get('TVA (FCFA)', '0.00')}FCFA
+Total TTC : {cmd.get('Total TTC (FCFA)', '0.00')}FCFA
 
 ⭐ Avis : {cmd.get('Avis', 'Non spécifié')}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1040,9 +1040,9 @@ Total TTC : {cmd.get('Total TTC (€)', '0.00')}€
                 if periode != "Toutes" and not date_dans_periode(c.get("Date", ""), periode):
                     continue
 
-                total_ht_cmd = float(c.get("Total HT (€)", c.get("Total (€)", "0")))
-                tva_cmd = float(c.get("TVA (€)", "0"))
-                total_ttc_cmd = float(c.get("Total TTC (€)", c.get("Total (€)", "0")))
+                total_ht_cmd = float(c.get("Total HT (FCFA)", c.get("Total (FCFA)", "0")))
+                tva_cmd = float(c.get("TVA (FCFA)", "0"))
+                total_ttc_cmd = float(c.get("Total TTC (FCFA)", c.get("Total (FCFA)", "0")))
                 
                 self.tableau_commandes.insert("", "end", values=(
                     c.get("ID", ""), 
@@ -1063,7 +1063,7 @@ Total TTC : {cmd.get('Total TTC (€)', '0.00')}€
             messagebox.showerror("Erreur", f"Erreur lors du chargement : {str(e)}")
 
         self.label_resultat_commandes.config(
-            text=f"📊 {nb} commande(s) - HT : {total_ht:.2f}€ - TTC : {total_ttc:.2f}€"
+            text=f"📊 {nb} commande(s) - HT : {total_ht:.2f}FCFA - TTC : {total_ttc:.2f}FCFA"
         )
 
     def reinitialiser_filtres_commandes(self):
@@ -1085,7 +1085,7 @@ Total TTC : {cmd.get('Total TTC (€)', '0.00')}€
         try:
             with open(nom_fichier, mode="w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
-                writer.writerow(["ID", "Date", "Heure", "Client", "Plats", "Total HT (€)", "TVA (€)", "Total TTC (€)", "Avis", "Paiement"])
+                writer.writerow(["ID", "Date", "Heure", "Client", "Plats", "Total HT (FCFA)", "TVA (FCFA)", "Total TTC (FCFA)", "Avis", "Paiement"])
                 for ligne in self.tableau_commandes.get_children():
                     valeurs = self.tableau_commandes.item(ligne, "values")
                     writer.writerow(valeurs)
@@ -1192,7 +1192,7 @@ Total TTC : {cmd.get('Total TTC (€)', '0.00')}€
         self.tableau_depenses = ttk.Treeview(cadre_tableau, columns=colonnes, show="headings",
                                             yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set,
                                             height=10)
-        titres = ["ID", "Date", "Type", "Description", "Montant (€)"]
+        titres = ["ID", "Date", "Type", "Description", "Montant (FCFA)"]
         largeurs = [40, 90, 120, 180, 90]
         for col, titre, largeur in zip(colonnes, titres, largeurs):
             self.tableau_depenses.heading(col, text=titre)
@@ -1255,16 +1255,16 @@ Total TTC : {cmd.get('Total TTC (€)', '0.00')}€
                 d.get("Date", ""), 
                 d.get("Type", ""), 
                 d.get("Description", ""), 
-                d.get("Montant (€)", "0")
+                d.get("Montant (FCFA)", "0")
             ))
             try:
-                total_affiche += float(d.get("Montant (€)", "0"))
+                total_affiche += float(d.get("Montant (FCFA)", "0"))
             except:
                 pass
             nb += 1
 
         self.label_resultat_depenses.config(
-            text=f"📊 {nb} depense(s) affichee(s) - Total : {total_affiche:.2f}€"
+            text=f"📊 {nb} depense(s) affichee(s) - Total : {total_affiche:.2f}FCFA"
         )
 
     def reinitialiser_filtres_depenses(self):
@@ -1347,7 +1347,7 @@ Total TTC : {cmd.get('Total TTC (€)', '0.00')}€
                 font=('Arial', 10, 'bold'), fg=COLORS['white'], 
                 bg=COLORS['primary'], padx=15, pady=2).pack(fill="x")
 
-        self.label_solde_principal = tk.Label(cadre_solde, text="0.00 €", 
+        self.label_solde_principal = tk.Label(cadre_solde, text="0.00 FCFA", 
                                               font=('Arial', 24, 'bold'), 
                                               fg=COLORS['success'], bg=COLORS['white'],
                                               padx=20, pady=10)
@@ -1406,7 +1406,7 @@ Total TTC : {cmd.get('Total TTC (€)', '0.00')}€
         tk.Label(cadre_entrees, text="💰 Entrees (TTC)", 
                 font=('Arial', 10, 'bold'), bg=COLORS['success'], fg=COLORS['white'],
                 padx=10, pady=5).pack(fill="x")
-        self.label_entrees = tk.Label(cadre_entrees, text="0.00 €", 
+        self.label_entrees = tk.Label(cadre_entrees, text="0.00 FCFA", 
                                       font=('Arial', 14, 'bold'), 
                                       fg=COLORS['success'], bg=COLORS['light'],
                                       padx=10, pady=10)
@@ -1418,7 +1418,7 @@ Total TTC : {cmd.get('Total TTC (€)', '0.00')}€
         tk.Label(cadre_sorties, text="💸 Sorties (depenses)", 
                 font=('Arial', 10, 'bold'), bg=COLORS['danger'], fg=COLORS['white'],
                 padx=10, pady=5).pack(fill="x")
-        self.label_sorties = tk.Label(cadre_sorties, text="0.00 €", 
+        self.label_sorties = tk.Label(cadre_sorties, text="0.00 FCFA", 
                                       font=('Arial', 14, 'bold'), 
                                       fg=COLORS['danger'], bg=COLORS['light'],
                                       padx=10, pady=10)
@@ -1465,10 +1465,10 @@ Total TTC : {cmd.get('Total TTC (€)', '0.00')}€
             
         entrees, sorties, solde, depenses_par_type = resultat
         
-        self.label_entrees.config(text=f"{entrees:.2f} €")
-        self.label_sorties.config(text=f"{sorties:.2f} €")
+        self.label_entrees.config(text=f"{entrees:.2f} FCFA")
+        self.label_sorties.config(text=f"{sorties:.2f} FCFA")
         
-        self.label_solde_principal.config(text=f"{solde:.2f} €")
+        self.label_solde_principal.config(text=f"{solde:.2f} FCFA")
         
         if solde >= 0:
             self.label_solde_principal.config(fg=COLORS['success'])
@@ -1481,7 +1481,7 @@ Total TTC : {cmd.get('Total TTC (€)', '0.00')}€
         self.text_details_depenses.delete("1.0", tk.END)
         if depenses_par_type:
             for type_dep, montant in sorted(depenses_par_type.items()):
-                self.text_details_depenses.insert(tk.END, f"  • {type_dep}: {montant:.2f}€\n")
+                self.text_details_depenses.insert(tk.END, f"  • {type_dep}: {montant:.2f}FCFA\n")
         else:
             self.text_details_depenses.insert(tk.END, "Aucune depense sur cette periode.")
         self.text_details_depenses.config(state="disabled")

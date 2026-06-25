@@ -139,7 +139,7 @@ class Restaurant:
         with open(fichier, mode="a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             if nouveau_fichier:
-                writer.writerow(["Client", "Plats", "Total (€)", "Avis", "Date"])
+                writer.writerow(["Client", "Plats", "Total (FCFA)", "Avis", "Date"])
             plats_texte = " + ".join(commande_info["plats"])
             writer.writerow([
                 commande_info["client"],
@@ -182,7 +182,7 @@ if __name__ == "__main__":
         cuisinier.preparer_commande(commande, attente=10)
 
         total = caissier.calculer_addition(commande, restaurant.menu)
-        print(f"\n{caissier.get_nom()} : {nom_client}, l'addition s'il vous plait. Total = {total}€")
+        print(f"\n{caissier.get_nom()} : {nom_client}, l'addition s'il vous plait. Total = {total}  FCFA")
 
         avis = caissier.demander_avis()
 

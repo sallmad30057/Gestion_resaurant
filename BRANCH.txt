@@ -10,6 +10,10 @@ cat > BRANCH.txt << 'EOF'
 👤 AUTEUR : sallmad30057
 🏠 DÉPÔT : https://github.com/sallmad30057/Gestion_resaurant
 
+
+activate L'espace virtuelle avant de lancé le code : source venv/bin/activate
+Puis lancé le fichier de l'applications : python Restaurant_GUI.py
+
 ================================================================
 1. STRUCTURE DES BRANCHES
 ================================================================
