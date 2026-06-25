@@ -1,4 +1,3 @@
 ID,Date,Heure,Client,Plats,Total HT (€),TVA (€),Total TTC (€),Avis,Paiement
-1,2026-06-25,15:48,Google,Coca x1456,2912000.00,524160.00,3436160.00,bon,Carte
-2,2026-06-25,16:03,luc,Burrito,8000.00,1440.00,9440.00,bon,Espèce
-3,2026-06-25,16:08,f,Burrito,8000.00,1440.00,9440.00,bon,Espèce
+1,2026-06-25,18:48,TES 1,Cafe x103 + Jus x40,326000.00,58680.00,384680.00,bon,Espèce
+2,2026-06-25,19:08,TEST 2,Biere x15 + Nouilles x16 + Nachos x19,269000.00,48420.00,317420.00,bon,Espèce
