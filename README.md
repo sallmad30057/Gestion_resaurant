@@ -227,22 +227,3 @@ text
 
 ---
 
-## ✅ Ajouter sur GitHub
-
-```bash
-# 1. Se placer dans le dossier du projet
-cd ~/Bureau/gcc/App
-
-# 2. Vérifier les modifications
-git status
-
-# 3. Ajouter le README.md
-git add README.md
-
-# 4. Committer
-git commit -m "Mise à jour complète du README.md avec structure du projet, installation et documentation"
-
-# 5. Pousser
-git push origin coding
-
-🚀 Le fichier README.md est maintenant complet et prêt à être affiché sur GitHub.
