@@ -1,77 +1,58 @@
-# Gestion_resaurant
 # Application de gestion de restaurant - Chez Sall
 
 ## Description
 
-Cette application gère un restaurant simple avec une interface graphique Tkinter et une logique métier séparée. Elle permet de :
-- saisir de nouvelles commandes
-- afficher l'historique des commandes avec des filtres
-- générer et afficher un aperçu de reçu
-- gérer les dépenses du restaurant
-- consulter un bilan financier pour le manager
+Cette application permet de gérer les commandes, les dépenses et les reçus d’un restaurant via une interface graphique en Python avec Tkinter.
 
-L'application stocke les commandes dans `commandes.csv`, les dépenses dans `depenses.csv` et génère des reçus PDF dans le dossier `recus/`.
+Elle est organisée dans le dossier App et comprend :
+- la logique principale de l’interface dans le dossier res/
+- la gestion des mots de passe dans securite/
+- la génération des reçus dans recus/
+- les fichiers de données comme commandes.csv et depenses.csv
 
-## Structure des fichiers
+## Structure du dossier App
 
-- `Restaurant_GUI.py` : interface graphique principale et logique d'interaction avec l'utilisateur.
-- `Restaurant.py` : classes métier `Personne`, `Serveur`, `Cuisinier`, `Caissier`, `Manager`, `Restaurant` et un mode console de démonstration.
-- `menu.py` : définition du menu, des prix et des fonctions de calcul de TVA.
-- `reçu.py` : génération et aperçu des reçus PDF.
-- `commandes.csv` : fichier de données des commandes (créé/maintenu automatiquement).
-- `depenses.csv` : fichier de données des dépenses (créé/maintenu automatiquement).
-- `recus/` : dossier contenant les reçus PDF générés.
+- res/Restaurant_GUI.py : interface principale de l’application
+- res/Restaurant.py : classes métier et logique du restaurant
+- res/menu.py : définition du menu et des calculs de TVA
+- res/recu.py : génération des reçus
+- securite/mots_de_passe.py : gestion des mots de passe
+- recus/ : dossier où sont enregistrés les reçus PDF générés
+- commandes.csv : données des commandes
+- depenses.csv : données des dépenses
 
 ## Prérequis
 
 - Python 3
-- Tkinter (généralement inclus avec Python sur la plupart des systèmes)
-- `reportlab` pour la génération des reçus PDF
+- Tkinter
+- reportlab
 
-### Installation des dépendances
+### Installation
 
-Si vous utilisez un environnement virtuel, activez-le puis installez `reportlab` :
+Dans le dossier App, exécuter :
 
 ```bash
 pip install reportlab
 ```
 
-## Utilisation
+## Lancement
 
-1. Ouvrir un terminal dans le dossier `App`.
-2. Lancer l'application graphique :
+Depuis le dossier App, lancer :
 
 ```bash
-python Restaurant_GUI.py
+python res/Restaurant_GUI.py
 ```
-
-3. Utiliser l'onglet `Nouvelle commande` pour saisir les commandes et générer un reçu.
-4. Aller dans l'onglet `Commandes` pour voir, filtrer, exporter ou supprimer les commandes.
-5. Aller dans l'onglet `Dépenses` pour enregistrer et filtrer les dépenses.
-6. Aller dans l'onglet `Bilan` pour afficher le bilan financier TTC (accessible au manager).
 
 ## Fonctionnalités principales
 
-- sélection d'articles via un menu déroulant
-- ajout de quantités pour chaque plat
-- calcul automatique du total HT, de la TVA (18%) et du total TTC
-- choix du moyen de paiement et avis client
-- enregistrement automatique des commandes dans `commandes.csv`
-- génération de reçus PDF dans `recus/`
-- recherche et filtres par client, plat, ID, avis et période
-- export CSV des commandes filtrées
-- gestion des dépenses par type et période
-- bilan financier avec entrées, sorties et solde
+- saisie de nouvelles commandes
+- consultation et filtrage des commandes
+- génération de reçus PDF
+- enregistrement des dépenses
+- affichage d’un bilan financier
 
 ## Notes importantes
 
-- le dossier `recus/` est créé automatiquement s'il n'existe pas
-- si `commandes.csv` n'existe pas, il sera généré automatiquement
-- le fichier `Restaurant.py` contient un mode console pédagogique en plus de la logique métier
-
-## Suggestions d'amélioration
-
-- ajouter une authentification pour le manager
-- ajouter un vrai catalogue de clients
-- améliorer la gestion des stocks et des quantités
-- ajouter des rapports imprimables pour le bilan
+- le dossier recus/ est créé automatiquement s’il n’existe pas
+- les fichiers commandes.csv et depenses.csv sont générés ou mis à jour automatiquement
+- l’application est pensée pour fonctionner directement depuis le dossier App
