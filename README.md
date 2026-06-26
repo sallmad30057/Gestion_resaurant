@@ -58,34 +58,23 @@ Application de gestion de restaurant avec interface graphique Tkinter, conçue p
 
 ## 📁 Structure du projet
 
+```text
 App/
-├── config/
-│ └── config.py # Configuration centralisée (couleurs, paramètres)
-├── res/ # Code source principal
-│ ├── Restaurant_GUI.py # Interface principale (~2000 lignes)
-│ ├── Restaurant.py # Classes (Serveur, Caissier, Manager)
-│ ├── menu.py # Menu et TVA
-│ ├── recu.py # Gestion des reçus (format FCFA)
-│ ├── database.py # Gestion SQLite (tables, connexion)
-│ ├── tables.py # Gestion des tables (occupation, statut)
-│ ├── clients.py # Gestion des clients (fidélité, historique)
-│ ├── commandes_manager.py # Suivi des commandes (statuts, filtres)
-│ ├── depenses_manager.py # Gestion des dépenses SQLite
-│ ├── interface_tactile.py # Adaptation pour écrans tactiles
-│ └── main.py # Point d'entrée principal
-├── securite/
-│ └── mots_de_passe.py # Mots de passe (application + manager)
-├── recus/ # 📁 Reçus PDF générés
-├── db/ # 📁 Base de données SQLite
-│ └── restaurant.db # Base de données (créée automatiquement)
-├── logs/ # 📁 Journaux d'activité
-├── backups/ # 📁 Sauvegardes automatiques
-├── requirements.txt # Dépendances Python
-├── run.py # Script de lancement
-├── .gitignore # Fichiers ignorés par Git
-└── README.md # Documentation
-text
-
+├── README.md
+├── BRANCH.txt
+├── commande_git.md
+├── commandes.csv
+├── depenses.csv
+├── export_commandes_2026-06-25.csv
+├── recus/
+├── res/
+│   ├── Restaurant_GUI.py
+│   ├── Restaurant.py
+│   ├── menu.py
+│   └── recu.py
+└── securite/
+    └── mots_de_passe.py
+```
 
 ---
 
