@@ -4,6 +4,7 @@ INTERFACE GRAPHIQUE - Restaurant Chez Sall (version SQLite)
 Avec sécurité (mot de passe application + mot de passe manager)
 ================================================================
 """
+
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -232,8 +233,8 @@ class FenetreRestaurant(tk.Tk):
         if hasattr(self, 'tableau_commandes'):
             largeur = self.tableau_commandes.winfo_width()
             if largeur > 100:
-                cols = ["id", "date", "heure", "client", "plats", "total_ht", "tva", "total_ttc", "avis", "paiement", "statut"]
-                largeurs = [40, 80, 60, 100, 150, 80, 80, 80, 80, 90, 100]
+                cols = ["id", "date", "heure", "client", "plats", "total_ht", "tva", "total_ttc", "avis", "paiement", "statut", "temps"]
+                largeurs = [40, 80, 60, 100, 150, 80, 80, 80, 80, 90, 100, 80]
                 for col, w in zip(cols, largeurs):
                     self.tableau_commandes.column(col, width=w)
         if hasattr(self, 'tableau_depenses'):
@@ -613,7 +614,7 @@ class FenetreRestaurant(tk.Tk):
             messagebox.showwarning("Aucune commande", "Aucune commande récente.")
 
     # ==============================================================
-    # ONGLET 2 : COMMANDES
+    # ONGLET 2 : COMMANDES AVEC TEMPS ET COULEURS
     # ==============================================================
     def construire_onglet_commandes(self):
         cadre = self.onglet_commandes
@@ -687,12 +688,12 @@ class FenetreRestaurant(tk.Tk):
         cadre_tableau.pack(fill="both", expand=True, padx=10, pady=5)
         scroll_y = ttk.Scrollbar(cadre_tableau, orient="vertical")
         scroll_x = ttk.Scrollbar(cadre_tableau, orient="horizontal")
-        colonnes = ("id", "date", "heure", "client", "plats", "total_ht", "tva", "total_ttc", "avis", "paiement", "statut")
+        colonnes = ("id", "date", "heure", "client", "plats", "total_ht", "tva", "total_ttc", "avis", "paiement", "statut", "temps")
         self.tableau_commandes = ttk.Treeview(cadre_tableau, columns=colonnes, show="headings",
                                               yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set,
                                               height=15, selectmode='extended')
-        titres = ["ID", "Date", "Heure", "Client", "Plats", "HT", "TVA", "TTC", "Avis", "Paiement", "Statut"]
-        largeurs = [40, 80, 60, 100, 150, 80, 80, 80, 80, 90, 100]
+        titres = ["ID", "Date", "Heure", "Client", "Plats", "HT", "TVA", "TTC", "Avis", "Paiement", "Statut", "Temps"]
+        largeurs = [40, 80, 60, 100, 150, 80, 80, 80, 80, 90, 100, 80]
         for col, titre, w in zip(colonnes, titres, largeurs):
             self.tableau_commandes.heading(col, text=titre)
             self.tableau_commandes.column(col, width=w, minwidth=w//2)
@@ -701,6 +702,13 @@ class FenetreRestaurant(tk.Tk):
         self.tableau_commandes.pack(side="left", fill="both", expand=True)
         scroll_y.pack(side="right", fill="y")
         scroll_x.pack(side="bottom", fill="x")
+
+        # Configurer les couleurs des statuts
+        self.tableau_commandes.tag_configure('En attente', background='#ff9800', foreground='white')
+        self.tableau_commandes.tag_configure('En préparation', background='#2196f3', foreground='white')
+        self.tableau_commandes.tag_configure('Servie', background='#4caf50', foreground='white')
+        self.tableau_commandes.tag_configure('Payée', background='#9c27b0', foreground='white')
+        self.tableau_commandes.tag_configure('Terminée', background='#9e9e9e', foreground='white')
 
         self.tableau_commandes.bind("<<TreeviewSelect>>", self.on_commande_selectionnee)
 
@@ -720,6 +728,45 @@ class FenetreRestaurant(tk.Tk):
 
         tk.Frame(contenu, height=50, bg=COLORS['light']).pack()
         self.appliquer_filtres_commandes()
+
+    def calculer_temps_ecoule(self, date_creation, heure_creation, served_at=None, statut=None):
+        """
+        Calcule le temps écoulé depuis la création, ou jusqu'au service si terminé.
+        """
+        try:
+            if statut in ("Servie", "Payée", "Terminée") and served_at:
+                if 'T' in served_at:
+                    dt_served = datetime.fromisoformat(served_at)
+                else:
+                    dt_served = datetime.strptime(served_at, "%Y-%m-%d %H:%M:%S")
+                if date_creation and 'T' in str(date_creation):
+                    dt_created = datetime.fromisoformat(date_creation)
+                else:
+                    dt_created = datetime.strptime(f"{date_creation} {heure_creation}", "%Y-%m-%d %H:%M")
+                delta = dt_served - dt_created
+            else:
+                if date_creation and 'T' in str(date_creation):
+                    dt = datetime.fromisoformat(date_creation)
+                else:
+                    dt = datetime.strptime(f"{date_creation} {heure_creation}", "%Y-%m-%d %H:%M")
+                maintenant = datetime.now()
+                delta = maintenant - dt
+            secondes = delta.total_seconds()
+            if secondes < 60:
+                return f"{int(secondes)} s"
+            elif secondes < 3600:
+                minutes = int(secondes // 60)
+                return f"{minutes} min"
+            elif secondes < 86400:
+                heures = int(secondes // 3600)
+                minutes = int((secondes % 3600) // 60)
+                return f"{heures} h {minutes} min"
+            else:
+                jours = int(secondes // 86400)
+                heures = int((secondes % 86400) // 3600)
+                return f"{jours} j {heures} h"
+        except:
+            return "N/A"
 
     def on_commande_selectionnee(self, event):
         selection = self.tableau_commandes.selection()
@@ -862,6 +909,8 @@ Total TTC : {format_price(total_ttc)}
             gc = self.gestion_commandes
             cmd = gc.get_commande(commande_id)
             if cmd:
+                # Récupérer served_at pour le reçu
+                served_at = cmd.get('served_at', None)
                 commande_info = {
                     'id': cmd['id'],
                     'date': cmd['date'],
@@ -869,7 +918,8 @@ Total TTC : {format_price(total_ttc)}
                     'client': cmd['client'],
                     'plats': [p.strip() for p in cmd['plats'].split('+') if p.strip()],
                     'avis': cmd['avis'],
-                    'paiement': cmd['paiement']
+                    'paiement': cmd['paiement'],
+                    'served_at': served_at
                 }
                 fichier = generer_recu(commande_info)
                 messagebox.showinfo("Succès", f"✅ Reçu généré : {os.path.basename(fichier)}")
@@ -923,6 +973,9 @@ Total TTC : {format_price(total_ttc)}
         else:
             commandes = gc.get_commandes_jour()
 
+        # Trier par created_at asc (les plus anciennes en premier)
+        commandes = sorted(commandes, key=lambda x: x.get('created_at', f"{x.get('date', '')} {x.get('heure', '')}"))
+
         total_ht = 0
         total_ttc = 0
         nb = 0
@@ -941,10 +994,16 @@ Total TTC : {format_price(total_ttc)}
             tva_cmd = float(c.get("TVA (€)", c.get("tva", 0)))
             total_ttc_cmd = float(c.get("Total TTC (€)", c.get("total_ttc", 0)))
 
+            statut = c.get("statut", "En attente")
+            served_at = c.get("served_at", None)
+            date_cmd = c.get("Date", c.get("date", ""))
+            heure_cmd = c.get("Heure", c.get("heure", ""))
+            temps = self.calculer_temps_ecoule(date_cmd, heure_cmd, served_at, statut)
+
             self.tableau_commandes.insert("", "end", values=(
                 c.get("ID", c.get("id", "")),
-                c.get("Date", c.get("date", "")),
-                c.get("Heure", c.get("heure", "")),
+                date_cmd,
+                heure_cmd,
                 c.get("Client", c.get("client", "")),
                 c.get("Plats", c.get("plats", "")),
                 format_price_table(total_ht_cmd),
@@ -952,11 +1011,14 @@ Total TTC : {format_price(total_ttc)}
                 format_price_table(total_ttc_cmd),
                 c.get("Avis", c.get("avis", "")),
                 c.get("Paiement", c.get("paiement", "")),
-                c.get("statut", "En attente")
-            ))
+                statut,
+                temps
+            ), tags=(statut,))
+
             total_ht += total_ht_cmd
             total_ttc += total_ttc_cmd
             nb += 1
+
         self.label_resultat_commandes.config(
             text=f"📊 {nb} commande(s) - HT : {format_price(total_ht)} - TTC : {format_price(total_ttc)}"
         )
@@ -977,7 +1039,7 @@ Total TTC : {format_price(total_ttc)}
         try:
             with open(nom, mode="w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
-                writer.writerow(["ID", "Date", "Heure", "Client", "Plats", "Total HT (€)", "TVA (€)", "Total TTC (€)", "Avis", "Paiement", "Statut"])
+                writer.writerow(["ID", "Date", "Heure", "Client", "Plats", "Total HT (€)", "TVA (€)", "Total TTC (€)", "Avis", "Paiement", "Statut", "Temps"])
                 for ligne in self.tableau_commandes.get_children():
                     writer.writerow(self.tableau_commandes.item(ligne, "values"))
             messagebox.showinfo("Export réussi", f"✅ Fichier exporté : {nom}")
@@ -985,7 +1047,7 @@ Total TTC : {format_price(total_ttc)}
             messagebox.showerror("Erreur", f"Erreur : {str(e)}")
 
     # ==============================================================
-    # ONGLET 3 : DÉPENSES (CORRIGÉ)
+    # ONGLET 3 : DÉPENSES
     # ==============================================================
     def construire_onglet_depenses(self):
         cadre = self.onglet_depenses
@@ -1198,7 +1260,7 @@ Total TTC : {format_price(total_ttc)}
         messagebox.showinfo("Succès", "✅ Dépense supprimée.")
 
     # ==============================================================
-    # ONGLET 4 : BILAN (CORRIGÉ)
+    # ONGLET 4 : BILAN
     # ==============================================================
     def construire_onglet_bilan(self):
         cadre = self.onglet_bilan
@@ -1420,7 +1482,6 @@ Total TTC : {format_price(total_ttc)}
     def generer_rapport_bilan_pdf(self):
         if not self.acces_bilan:
             return
-        # Fonction simplifiée pour le test
         messagebox.showinfo("Rapport PDF", "Fonctionnalité de rapport PDF disponible dans la version complète.")
 
 

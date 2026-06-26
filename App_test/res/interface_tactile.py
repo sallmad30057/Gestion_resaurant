@@ -7,7 +7,7 @@ Agrandit les éléments pour une utilisation sur tablette / écran tactile
 
 import tkinter as tk
 from tkinter import ttk
-from App.App_test.config.config import MODE_TACTILE, get_colors
+from config.config import MODE_TACTILE, get_colors
 
 def appliquer_style_tactile():
     """Applique un style adapté au tactile."""
