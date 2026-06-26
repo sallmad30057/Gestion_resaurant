@@ -1,0 +1,11 @@
+# ============================================================
+# DÉPENDANCES - Restaurant Chez Sall
+# ============================================================
+
+# Génération de PDF pour les reçus et rapports
+reportlab>=4.0.0
+
+# (Optionnel) Pour les futures intégrations
+# openpyxl>=3.1.0          # Export Excel
+# pillow>=10.0.0           # Traitement d'images
+# python-dotenv>=1.0.0     # Variables d'environnement
