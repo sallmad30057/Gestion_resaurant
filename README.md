@@ -5,6 +5,7 @@
 Cette application permet de gérer les commandes, les dépenses et les reçus d’un restaurant via une interface graphique en Python avec Tkinter.
 
 Elle est organisée dans le dossier App et comprend :
+
 - la logique principale de l’interface dans le dossier res/
 - la gestion des mots de passe dans securite/
 - la génération des reçus dans recus/
