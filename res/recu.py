@@ -34,6 +34,17 @@ def get_dossier_recus():
         os.makedirs(DOSSIER_RECUS)
     return DOSSIER_RECUS
 
+def format_fcfa(amount):
+    """
+    Formate un montant en FCFA sans décimales, avec séparation des milliers par espace.
+    Exemple: 23000 -> "23 000 FCFA"
+    """
+    try:
+        amount = round(float(amount))
+        return f"{amount:,}".replace(",", " ") + " FCFA"
+    except:
+        return "0 FCFA"
+
 def generer_recu(commande_info, fichier_pdf=None):
     """
     Génère un reçu PDF pour une commande dans le dossier recus/.
@@ -175,16 +186,16 @@ def generer_recu(commande_info, fichier_pdf=None):
                 qte = 1
             prix_unitaire = MENU.get(nom, 0)
             prix = prix_unitaire * qte
-            data.append([f"{nom} x{qte}", f"{prix:.2f}€"])
+            data.append([f"{nom} x{qte}", format_fcfa(prix)])
             total_ht += prix
         else:
             plat_clean = plat.strip()
             prix = MENU.get(plat_clean, 0)
-            data.append([plat_clean, f"{prix:.2f}€"])
+            data.append([plat_clean, format_fcfa(prix)])
             total_ht += prix
     
     if len(data) == 1:
-        data.append(["Aucun plat", "0.00€"])
+        data.append(["Aucun plat", format_fcfa(0)])
     
     table = Table(data, colWidths=[70*mm, 25*mm])
     table.setStyle(TableStyle([
@@ -208,9 +219,9 @@ def generer_recu(commande_info, fichier_pdf=None):
     tva = total_ht * TVA_RATE
     total_ttc = total_ht + tva
     
-    story.append(Paragraph(f"Sous-total HT: {total_ht:.2f}€", style_item))
-    story.append(Paragraph(f"TVA (18%): {tva:.2f}€", style_tva))
-    story.append(Paragraph(f"<b>TOTAL TTC: {total_ttc:.2f}€</b>", style_total))
+    story.append(Paragraph(f"Sous-total HT: {format_fcfa(total_ht)}", style_item))
+    story.append(Paragraph(f"TVA (18%): {format_fcfa(tva)}", style_tva))
+    story.append(Paragraph(f"<b>TOTAL TTC: {format_fcfa(total_ttc)}</b>", style_total))
     story.append(Spacer(1, 6))
     
     avis = commande_info.get('avis', '')
@@ -352,7 +363,7 @@ def afficher_apercu_recu(commande_info, parent=None):
             prix = prix_unitaire * qte
             tk.Label(ligne, text=f"{nom} x{qte}", font=('Arial', 9), 
                     bg='white', width=25, anchor='w').pack(side='left', padx=5)
-            tk.Label(ligne, text=f"{prix:.2f}€", font=('Arial', 9), 
+            tk.Label(ligne, text=format_fcfa(prix), font=('Arial', 9), 
                     bg='white', width=10, anchor='e').pack(side='right', padx=5)
             total_ht += prix
         else:
@@ -360,7 +371,7 @@ def afficher_apercu_recu(commande_info, parent=None):
             prix = MENU.get(plat_clean, 0)
             tk.Label(ligne, text=plat_clean, font=('Arial', 9), 
                     bg='white', width=25, anchor='w').pack(side='left', padx=5)
-            tk.Label(ligne, text=f"{prix:.2f}€", font=('Arial', 9), 
+            tk.Label(ligne, text=format_fcfa(prix), font=('Arial', 9), 
                     bg='white', width=10, anchor='e').pack(side='right', padx=5)
             total_ht += prix
     
@@ -373,14 +384,14 @@ def afficher_apercu_recu(commande_info, parent=None):
     total_frame = tk.Frame(contenu, bg='white')
     total_frame.pack(fill='x', padx=10, pady=5)
     
-    tk.Label(total_frame, text=f"Sous-total HT:", font=('Arial', 10), 
+    tk.Label(total_frame, text="Sous-total HT:", font=('Arial', 10), 
             bg='white').pack(anchor='e')
-    tk.Label(total_frame, text=f"{total_ht:.2f}€", font=('Arial', 10), 
+    tk.Label(total_frame, text=format_fcfa(total_ht), font=('Arial', 10), 
             bg='white').pack(anchor='e')
     
-    tk.Label(total_frame, text=f"TVA (18%):", font=('Arial', 9), 
+    tk.Label(total_frame, text="TVA (18%):", font=('Arial', 9), 
             fg='#f39c12', bg='white').pack(anchor='e')
-    tk.Label(total_frame, text=f"{tva:.2f}€", font=('Arial', 9), 
+    tk.Label(total_frame, text=format_fcfa(tva), font=('Arial', 9), 
             fg='#f39c12', bg='white').pack(anchor='e')
     
     tk.Label(total_frame, text="=" * 30, font=('Arial', 8), 
@@ -388,7 +399,7 @@ def afficher_apercu_recu(commande_info, parent=None):
     
     tk.Label(total_frame, text="TOTAL TTC:", font=('Arial', 12, 'bold'), 
             fg='#27ae60', bg='white').pack(anchor='e')
-    tk.Label(total_frame, text=f"{total_ttc:.2f}€", font=('Arial', 14, 'bold'), 
+    tk.Label(total_frame, text=format_fcfa(total_ttc), font=('Arial', 14, 'bold'), 
             fg='#27ae60', bg='white').pack(anchor='e')
     
     avis = commande_info.get('avis', '')

@@ -8,7 +8,7 @@ Fichier séparé pour faciliter la gestion des plats
 MENU = {
     "Pizza": 5000,
     "Burger": 8000,
-    "Jus": 3000,
+    "Jus": 1000,
     "Salade": 5000,
     "Pates": 7000,
     "Dessert": 4000,

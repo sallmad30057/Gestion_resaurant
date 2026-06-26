@@ -1,3 +1,5 @@
 ID,Date,Heure,Client,Plats,Total HT (€),TVA (€),Total TTC (€),Avis,Paiement
 1,2026-06-25,18:48,TES 1,Cafe x103 + Jus x40,326000.00,58680.00,384680.00,bon,Espèce
 2,2026-06-25,19:08,TEST 2,Biere x15 + Nouilles x16 + Nachos x19,269000.00,48420.00,317420.00,bon,Espèce
+3,2026-06-26,09:04,kail,Soupe x5,20000.00,3600.00,23600.00,bon,Wave
+4,2026-06-26,10:29,lucia,Salade x8 + Riz x6 + Pates x14,162000.00,29160.00,191160.00,parfait,Wave

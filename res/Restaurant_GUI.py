@@ -1,11 +1,14 @@
 """
 ================================================================
 INTERFACE GRAPHIQUE - Restaurant Chez Sall (version FCFA)
-Avec affichage en FCFA, espacement milliers, TVA 18%
+Avec sécurité (mot de passe application + mot de passe manager)
 ================================================================
 """
 
+import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import csv
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -13,7 +16,6 @@ from datetime import date, datetime, timedelta
 import subprocess
 import platform
 
-# Imports pour le rapport PDF
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -23,6 +25,7 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 from Restaurant import Serveur, Caissier, Manager, Restaurant
 from menu import MENU, TVA
 from recu import afficher_apercu_recu, generer_recu, imprimer_recu_depuis_commande, get_dossier_recus
+from securite.mots_de_passe import MOT_DE_PASSE_APPLICATION, MOT_DE_PASSE_MANAGER
 
 
 # ============================================================
@@ -261,6 +264,59 @@ def calculer_bilan_financier(demandeur, periode="Toutes", date_debut=None, date_
     return entrees, sorties, entrees - sorties, depenses_par_type
 
 
+# ============================================================
+# FENÊTRE DE CONNEXION (CORRIGÉE)
+# ============================================================
+class FenetreConnexion(tk.Toplevel):
+    def __init__(self, parent, titre="Connexion", message="Entrez le mot de passe :"):
+        super().__init__(parent)
+        self.parent = parent
+        self.titre = titre
+        self.message = message
+        self.mot_de_passe = None
+        self.ok = False
+        self.geometry("350x150")
+        self.title(titre)
+        self.configure(bg=COLORS['light'])
+        self.transient(parent)
+        # SUPPRESSION de grab_set() pour éviter de bloquer la souris
+        # self.grab_set()
+        self.focus_force()
+
+        # Centrer la fenêtre
+        self.update_idletasks()
+        x = (self.winfo_screenwidth() - self.winfo_width()) // 2
+        y = (self.winfo_screenheight() - self.winfo_height()) // 2
+        self.geometry(f"+{x}+{y}")
+
+        tk.Label(self, text=message, font=('Arial', 10, 'bold'), bg=COLORS['light']).pack(pady=15)
+        self.entry = ttk.Entry(self, show="*", width=25)
+        self.entry.pack(pady=5)
+        self.entry.bind("<Return>", lambda e: self.valider())
+        # Support du copier-coller
+        self.entry.bind("<Control-v>", lambda e: self.entry.event_generate("<<Paste>>"))
+        self.entry.bind("<Control-c>", lambda e: self.entry.event_generate("<<Copy>>"))
+        self.entry.bind("<Control-x>", lambda e: self.entry.event_generate("<<Cut>>"))
+
+        bouton_frame = tk.Frame(self, bg=COLORS['light'])
+        bouton_frame.pack(pady=10)
+        ttk.Button(bouton_frame, text="OK", command=self.valider, style='Accent.TButton').pack(side="left", padx=5)
+        ttk.Button(bouton_frame, text="Annuler", command=self.annuler, style='Danger.TButton').pack(side="left", padx=5)
+
+        self.entry.focus()
+        # Forcer le focus après un court délai pour que le clavier fonctionne
+        self.after(100, self.entry.focus_set)
+
+    def valider(self):
+        self.mot_de_passe = self.entry.get()
+        self.ok = True
+        self.destroy()
+
+    def annuler(self):
+        self.ok = False
+        self.destroy()
+
+
 # ==================================================================
 # CLASSE PRINCIPALE
 # ==================================================================
@@ -277,6 +333,7 @@ class FenetreRestaurant(tk.Tk):
 
         self.appliquer_style()
 
+        # Initialiser le notebook et les onglets (mais pas encore le contenu)
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -290,17 +347,21 @@ class FenetreRestaurant(tk.Tk):
         self.notebook.add(self.onglet_depenses, text="💰 Depenses")
         self.notebook.add(self.onglet_bilan, text="📊 Bilan (manager)")
 
-        self.construire_onglet_commande()
-        self.construire_onglet_commandes()
-        self.construire_onglet_depenses()
-        self.construire_onglet_bilan()
-
-        self.bind("<Configure>", self.on_resize)
-        
-        # Variable pour stocker l'ID de la dernière commande
+        # Variables
         self.derniere_commande_id = None
         self.derniere_commande_info = None
         self.commande_selectionnee_id = None
+        
+        # Gestion de l'accès manager avec compteur de tentatives
+        self.tentatives_manager_bilan = 0
+        self.tentatives_manager_depenses = 0
+        self.acces_bilan = False
+        self.acces_depenses = False
+        self.bloque_bilan = False
+        self.bloque_depenses = False
+
+        # Demander le mot de passe général avant de construire l'interface
+        self.verifier_acces_application()
 
     def appliquer_style(self):
         """Applique un style moderne a l'interface."""
@@ -349,6 +410,9 @@ class FenetreRestaurant(tk.Tk):
                        foreground=COLORS['white'],
                        font=('Arial', 9, 'bold'))
 
+    # ============================================================
+    # REDIMENSIONNEMENT
+    # ============================================================
     def on_resize(self, event):
         """Gere le redimensionnement de la fenetre."""
         if hasattr(self, 'tableau_commandes'):
@@ -367,6 +431,9 @@ class FenetreRestaurant(tk.Tk):
                 for col, largeur in zip(colonnes, largeurs):
                     self.tableau_depenses.column(col, width=largeur)
 
+    # ============================================================
+    # OUVRIR DOSSIER DES REÇUS
+    # ============================================================
     def ouvrir_dossier_recus(self):
         """Ouvre le dossier des reçus dans le gestionnaire de fichiers."""
         dossier = get_dossier_recus()
@@ -376,6 +443,89 @@ class FenetreRestaurant(tk.Tk):
             subprocess.run(["open", dossier])
         else:  # Linux
             subprocess.run(["xdg-open", dossier])
+
+    # ============================================================
+    # VÉRIFICATION DU MOT DE PASSE APPLICATION (avec réessai)
+    # ============================================================
+    def verifier_acces_application(self):
+        """Affiche la fenêtre de connexion et vérifie le mot de passe, avec réessai."""
+        while True:
+            fenetre = FenetreConnexion(self, "Connexion à l'application", "Entrez le mot de passe de l'application :")
+            self.wait_window(fenetre)
+            if fenetre.ok and fenetre.mot_de_passe == MOT_DE_PASSE_APPLICATION:
+                self.creer_interface()
+                return
+            elif fenetre.ok:
+                messagebox.showerror("Accès refusé", "Mot de passe incorrect. Veuillez réessayer.")
+                # On boucle, la fenêtre se rouvre
+            else:
+                # L'utilisateur a cliqué sur Annuler
+                self.destroy()
+                return
+
+    def creer_interface(self):
+        """Construit l'interface après validation du mot de passe général."""
+        self.construire_onglet_commande()
+        self.construire_onglet_commandes()
+        self.construire_onglet_depenses()
+        self.construire_onglet_bilan()
+        self.bind("<Configure>", self.on_resize)
+
+    # ==============================================================
+    # GESTION GENERIQUE DE L'ACCÈS MANAGER (avec compteur de tentatives)
+    # ==============================================================
+    def demander_mot_de_passe_manager(self, nom_onglet):
+        """
+        Gère la demande de mot de passe manager pour un onglet donné.
+        Retourne True si l'accès est accordé, False si refus définitif.
+        """
+        # Récupérer les variables de compteur et de verrouillage selon l'onglet
+        if nom_onglet == "bilan":
+            if self.bloque_bilan:
+                messagebox.showerror("Accès refusé", "Trop de tentatives. Accès au Bilan définitivement bloqué.")
+                return False
+            compteur_attr = "tentatives_manager_bilan"
+            max_tentatives = 5
+        elif nom_onglet == "depenses":
+            if self.bloque_depenses:
+                messagebox.showerror("Accès refusé", "Trop de tentatives. Accès aux Dépenses définitivement bloqué.")
+                return False
+            compteur_attr = "tentatives_manager_depenses"
+            max_tentatives = 5
+        else:
+            return False
+
+        # Demander le mot de passe
+        fenetre = FenetreConnexion(self, f"Accès Manager - {nom_onglet.capitalize()}", 
+                                   f"Entrez le mot de passe manager pour accéder à {nom_onglet.capitalize()} :")
+        self.wait_window(fenetre)
+        if fenetre.ok and fenetre.mot_de_passe == MOT_DE_PASSE_MANAGER:
+            # Réinitialiser le compteur en cas de succès
+            setattr(self, compteur_attr, 0)
+            return True
+        elif fenetre.ok:
+            # Incrémenter le compteur
+            nouvelles_tentatives = getattr(self, compteur_attr) + 1
+            setattr(self, compteur_attr, nouvelles_tentatives)
+            restant = max_tentatives - nouvelles_tentatives
+            if restant <= 0:
+                # Bloquer définitivement
+                if nom_onglet == "bilan":
+                    self.bloque_bilan = True
+                else:
+                    self.bloque_depenses = True
+                messagebox.showerror("Accès bloqué", 
+                                     f"Vous avez dépassé le nombre maximal de tentatives ({max_tentatives}).\n"
+                                     f"L'accès à {nom_onglet.capitalize()} est définitivement refusé.")
+                return False
+            else:
+                messagebox.showerror("Mot de passe incorrect", 
+                                     f"Mot de passe incorrect. Il vous reste {restant} tentative(s).")
+                # Relancer la demande (appel récursif)
+                return self.demander_mot_de_passe_manager(nom_onglet)
+        else:
+            # L'utilisateur a annulé
+            return False
 
     # ==============================================================
     # ONGLET 1 : NOUVELLE COMMANDE
@@ -432,6 +582,9 @@ class FenetreRestaurant(tk.Tk):
         
         canvas.bind("<Enter>", _on_enter)
         canvas.bind("<Leave>", _on_leave)
+        # Pour Linux (X11)
+        canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+        canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
 
         def _configure_canvas(event):
             canvas.itemconfig(1, width=event.width)
@@ -556,7 +709,7 @@ class FenetreRestaurant(tk.Tk):
         tk.Frame(contenu, height=50, bg=COLORS['light']).pack()
 
     # ==============================================================
-    # ONGLET 2 : COMMANDES (sélection sans ouverture automatique)
+    # ONGLET 2 : COMMANDES
     # ==============================================================
     def construire_onglet_commandes(self):
         cadre = self.onglet_commandes
@@ -586,6 +739,9 @@ class FenetreRestaurant(tk.Tk):
         
         canvas.bind("<Enter>", _on_enter)
         canvas.bind("<Leave>", _on_leave)
+        # Pour Linux
+        canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+        canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
 
         def _configure_canvas(event):
             canvas.itemconfig(1, width=event.width)
@@ -738,7 +894,8 @@ class FenetreRestaurant(tk.Tk):
         fenetre.geometry("420x600")
         fenetre.configure(bg=COLORS['white'])
         fenetre.transient(self)
-        fenetre.grab_set()
+        # Ne pas utiliser grab_set() pour éviter de bloquer la souris
+        # fenetre.grab_set()
         fenetre.focus_force()
 
         # Centrer la fenêtre
@@ -1015,14 +1172,87 @@ Total TTC : {format_price(total_ttc)}
             messagebox.showerror("Erreur d'export", f"Erreur : {str(e)}")
 
     # ==============================================================
-    # ONGLET 3 : DEPENSES
+    # ONGLET 3 : DEPENSES (protégé par mot de passe manager)
     # ==============================================================
     def construire_onglet_depenses(self):
+        """Construit l'onglet Dépenses avec un verrouillage par mot de passe manager."""
         cadre = self.onglet_depenses
         cadre.configure(bg=COLORS['light'])
 
-        canvas = tk.Canvas(cadre, bg=COLORS['light'], highlightthickness=0)
-        scrollbar = ttk.Scrollbar(cadre, orient="vertical", command=canvas.yview)
+        # Frame conteneur qui sera rempli soit par le verrou soit par le contenu
+        self.depenses_frame = tk.Frame(cadre, bg=COLORS['light'])
+        self.depenses_frame.pack(fill="both", expand=True)
+
+        # Par défaut, afficher l'écran de verrouillage
+        self.afficher_verrou_depenses()
+
+    def afficher_verrou_depenses(self):
+        """Affiche l'écran de verrouillage pour l'onglet Dépenses."""
+        # Vider le frame
+        for widget in self.depenses_frame.winfo_children():
+            widget.destroy()
+
+        if self.bloque_depenses:
+            # Affichage définitif de blocage
+            label_bloque = tk.Label(self.depenses_frame, 
+                                    text="🔒 Accès aux Dépenses définitivement bloqué\n\nTrop de tentatives échouées.",
+                                    font=('Arial', 14, 'bold'), 
+                                    bg=COLORS['light'], fg=COLORS['danger'])
+            label_bloque.pack(pady=(100, 20))
+            return
+
+        # Message de verrouillage
+        label_verrou = tk.Label(self.depenses_frame, 
+                                text="🔒 Accès aux Dépenses\n\nCe service est protégé par le mot de passe manager.",
+                                font=('Arial', 14, 'bold'), 
+                                bg=COLORS['light'], fg=COLORS['danger'])
+        label_verrou.pack(pady=(100, 20))
+
+        # Bouton pour déverrouiller
+        self.btn_deverrouiller_depenses = ttk.Button(self.depenses_frame, 
+                                     text="🔑 Déverrouiller", 
+                                     command=self.demander_mot_de_passe_depenses,
+                                     style='Accent.TButton')
+        self.btn_deverrouiller_depenses.pack(pady=10)
+
+        self.acces_depenses = False
+
+    def demander_mot_de_passe_depenses(self):
+        """Demande le mot de passe manager pour déverrouiller les dépenses."""
+        if self.bloque_depenses:
+            messagebox.showerror("Accès refusé", "Accès aux Dépenses définitivement bloqué.")
+            return
+        if self.demander_mot_de_passe_manager("depenses"):
+            self.acces_depenses = True
+            self.afficher_contenu_depenses()
+        else:
+            # En cas d'échec, le verrou reste affiché (avec message d'erreur déjà géré)
+            if not self.bloque_depenses:
+                # Réessayer
+                self.afficher_verrou_depenses()
+            else:
+                # Si bloqué, afficher le message définitif
+                self.afficher_verrou_depenses()
+
+    def afficher_contenu_depenses(self):
+        """Affiche le contenu réel des dépenses après déverrouillage."""
+        # Vider le frame
+        for widget in self.depenses_frame.winfo_children():
+            widget.destroy()
+
+        # --- CORRECTION : Forcer la largeur du canvas avec update_idletasks ---
+        # Créer un canvas avec scroll
+        canvas = tk.Canvas(self.depenses_frame, bg=COLORS['light'], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self.depenses_frame, orient="vertical", command=canvas.yview)
+
+        # Pack d'abord pour que le canvas prenne sa taille
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Forcer la mise à jour de la géométrie
+        self.depenses_frame.update_idletasks()
+
+        # Maintenant on peut créer le frame défilant avec la bonne largeur
         scrollable_frame = tk.Frame(canvas, bg=COLORS['light'])
 
         scrollable_frame.bind(
@@ -1030,32 +1260,31 @@ Total TTC : {format_price(total_ttc)}
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
 
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=canvas.winfo_width())
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw",
+                             width=canvas.winfo_width())
         canvas.configure(yscrollcommand=scrollbar.set)
 
         def _on_mousewheel(event):
             canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        
         def _on_enter(event):
             canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        
         def _on_leave(event):
             canvas.unbind_all("<MouseWheel>")
-        
         canvas.bind("<Enter>", _on_enter)
         canvas.bind("<Leave>", _on_leave)
+        # Pour Linux
+        canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+        canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
 
+        # Redimensionnement automatique
         def _configure_canvas(event):
             canvas.itemconfig(1, width=event.width)
-        
         canvas.bind("<Configure>", _configure_canvas)
-
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
 
         contenu = scrollable_frame
         contenu.configure(bg=COLORS['light'])
 
+        # --- Contenu des dépenses (copié depuis l'ancienne version) ---
         titre = tk.Label(contenu, text="💰 Gestion des depenses", 
                         font=('Arial', 14, 'bold'), fg=COLORS['primary'], bg=COLORS['light'])
         titre.pack(anchor="w", padx=10, pady=(10, 10))
@@ -1137,7 +1366,12 @@ Total TTC : {format_price(total_ttc)}
                   style='Danger.TButton').pack(side="right", padx=5)
 
         self.appliquer_filtres_depenses()
+        # Mise à jour finale de la scrollregion
+        canvas.configure(scrollregion=canvas.bbox("all"))
 
+    # ==============================================================
+    # MÉTHODES DE GESTION DES DEPENSES
+    # ==============================================================
     def ajouter_depense(self):
         type_depense = self.combo_type_depense.get()
         description = self.champ_description_depense.get().strip()
@@ -1207,14 +1441,82 @@ Total TTC : {format_price(total_ttc)}
         messagebox.showinfo("Succes", f"✅ Depense n°{id_a_supprimer} supprimee.")
 
     # ==============================================================
-    # ONGLET 4 : BILAN AVEC RAPPORT PDF
+    # ONGLET 4 : BILAN (protégé par mot de passe manager, avec scroll)
     # ==============================================================
     def construire_onglet_bilan(self):
+        """Construit l'onglet Bilan avec un verrouillage par mot de passe manager."""
         cadre = self.onglet_bilan
         cadre.configure(bg=COLORS['light'])
 
-        canvas = tk.Canvas(cadre, bg=COLORS['light'], highlightthickness=0)
-        scrollbar = ttk.Scrollbar(cadre, orient="vertical", command=canvas.yview)
+        # Frame conteneur qui sera rempli soit par le verrou soit par le contenu
+        self.bilan_frame = tk.Frame(cadre, bg=COLORS['light'])
+        self.bilan_frame.pack(fill="both", expand=True)
+
+        # Par défaut, afficher l'écran de verrouillage
+        self.afficher_verrou_bilan()
+
+    def afficher_verrou_bilan(self):
+        """Affiche l'écran de verrouillage pour l'onglet Bilan."""
+        # Vider le frame
+        for widget in self.bilan_frame.winfo_children():
+            widget.destroy()
+
+        if self.bloque_bilan:
+            label_bloque = tk.Label(self.bilan_frame, 
+                                    text="🔒 Accès au Bilan définitivement bloqué\n\nTrop de tentatives échouées.",
+                                    font=('Arial', 14, 'bold'), 
+                                    bg=COLORS['light'], fg=COLORS['danger'])
+            label_bloque.pack(pady=(100, 20))
+            return
+
+        # Message de verrouillage
+        label_verrou = tk.Label(self.bilan_frame, 
+                                text="🔒 Accès au Bilan Manager\n\nCe service est protégé par un mot de passe.",
+                                font=('Arial', 14, 'bold'), 
+                                bg=COLORS['light'], fg=COLORS['danger'])
+        label_verrou.pack(pady=(100, 20))
+
+        # Bouton pour déverrouiller
+        self.btn_deverrouiller_bilan = ttk.Button(self.bilan_frame, 
+                                     text="🔑 Déverrouiller", 
+                                     command=self.demander_mot_de_passe_bilan,
+                                     style='Accent.TButton')
+        self.btn_deverrouiller_bilan.pack(pady=10)
+
+        self.acces_bilan = False
+
+    def demander_mot_de_passe_bilan(self):
+        """Demande le mot de passe manager pour déverrouiller le bilan."""
+        if self.bloque_bilan:
+            messagebox.showerror("Accès refusé", "Accès au Bilan définitivement bloqué.")
+            return
+        if self.demander_mot_de_passe_manager("bilan"):
+            self.acces_bilan = True
+            self.afficher_contenu_bilan()
+        else:
+            if not self.bloque_bilan:
+                self.afficher_verrou_bilan()
+            else:
+                self.afficher_verrou_bilan()
+
+    def afficher_contenu_bilan(self):
+        """Affiche le contenu réel du bilan avec une barre de défilement."""
+        # Vider le frame
+        for widget in self.bilan_frame.winfo_children():
+            widget.destroy()
+
+        # --- CORRECTION : Forcer la largeur du canvas avec update_idletasks ---
+        canvas = tk.Canvas(self.bilan_frame, bg=COLORS['light'], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self.bilan_frame, orient="vertical", command=canvas.yview)
+
+        # Pack d'abord pour que le canvas prenne sa taille
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Forcer la mise à jour de la géométrie
+        self.bilan_frame.update_idletasks()
+
+        # Créer le frame intérieur avec la bonne largeur
         scrollable_frame = tk.Frame(canvas, bg=COLORS['light'])
 
         scrollable_frame.bind(
@@ -1222,32 +1524,31 @@ Total TTC : {format_price(total_ttc)}
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
 
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=canvas.winfo_width())
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw",
+                             width=canvas.winfo_width())
         canvas.configure(yscrollcommand=scrollbar.set)
 
         def _on_mousewheel(event):
             canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        
         def _on_enter(event):
             canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        
         def _on_leave(event):
             canvas.unbind_all("<MouseWheel>")
-        
         canvas.bind("<Enter>", _on_enter)
         canvas.bind("<Leave>", _on_leave)
+        # Pour Linux
+        canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+        canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
 
+        # Redimensionnement automatique
         def _configure_canvas(event):
             canvas.itemconfig(1, width=event.width)
-        
         canvas.bind("<Configure>", _configure_canvas)
-
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
 
         contenu = scrollable_frame
         contenu.configure(bg=COLORS['light'])
 
+        # --- Contenu du bilan ---
         cadre_entete = tk.Frame(contenu, bg=COLORS['light'])
         cadre_entete.pack(fill="x", padx=20, pady=(20, 10))
 
@@ -1305,12 +1606,10 @@ Total TTC : {format_price(total_ttc)}
         self.bilan_date_fin.insert(0, date.today().isoformat())
         self.bilan_date_fin.config(state="disabled")
 
-        # Bouton Calculer le bilan
         ttk.Button(cadre_periode, text="📊 Calculer le bilan", 
                   command=self.calculer_et_afficher_bilan,
                   style='Accent.TButton').pack(pady=5)
 
-        # Bouton Générer rapport PDF
         ttk.Button(cadre_periode, text="📊 Générer rapport PDF", 
                   command=self.generer_rapport_bilan_pdf,
                   style='Print.TButton').pack(pady=5)
@@ -1356,8 +1655,16 @@ Total TTC : {format_price(total_ttc)}
 
         tk.Frame(contenu, height=50, bg=COLORS['light']).pack()
         
-        self.calculer_et_afficher_bilan()
+        # Appel initial pour afficher les données (si le bilan a déjà été déverrouillé)
+        if self.acces_bilan:
+            self.calculer_et_afficher_bilan()
 
+        # Mise à jour finale de la scrollregion
+        canvas.configure(scrollregion=canvas.bbox("all"))
+
+    # ==============================================================
+    # MÉTHODES DU BILAN
+    # ==============================================================
     def on_bilan_periode_changed(self, event=None):
         periode = self.combo_periode_bilan.get()
         etat = "normal" if periode == "Personnalisee" else "disabled"
@@ -1365,6 +1672,9 @@ Total TTC : {format_price(total_ttc)}
         self.bilan_date_fin.config(state=etat)
 
     def calculer_et_afficher_bilan(self):
+        if not self.acces_bilan:
+            messagebox.showerror("Accès refusé", "Vous devez déverrouiller le bilan manager.")
+            return
         periode = self.combo_periode_bilan.get()
         date_debut = None
         date_fin = None
@@ -1406,15 +1716,17 @@ Total TTC : {format_price(total_ttc)}
         self.text_details_depenses.config(state="disabled")
 
     # ==============================================================
-    # GÉNÉRATION DU RAPPORT PDF (CORRIGÉ)
+    # GÉNÉRATION DU RAPPORT PDF (COMPLETE)
     # ==============================================================
     def generer_rapport_bilan_pdf(self):
         """Génère un rapport PDF des entrées et sorties sur la période sélectionnée."""
+        if not self.acces_bilan:
+            messagebox.showerror("Accès refusé", "Vous devez déverrouiller le bilan manager.")
+            return
         periode = self.combo_periode_bilan.get()
         date_debut = None
         date_fin = None
         
-        # Déterminer les dates selon la période
         if periode == "Personnalisee":
             date_debut = self.bilan_date_debut.get().strip()
             date_fin = self.bilan_date_fin.get().strip()
@@ -1447,11 +1759,10 @@ Total TTC : {format_price(total_ttc)}
             elif periode == "Cette année":
                 date_debut = aujourd_hui.replace(month=1, day=1).isoformat()
                 date_fin = aujourd_hui.replace(month=12, day=31).isoformat()
-            else:  # Toutes
+            else:
                 date_debut = None
                 date_fin = None
 
-        # Récupérer les données
         commandes = charger_commandes()
         depenses = charger_depenses()
 
@@ -1473,7 +1784,6 @@ Total TTC : {format_price(total_ttc)}
         total_sorties = sum(float(d["Montant (€)"]) for d in depenses_filtrees)
         solde = total_entrees - total_sorties
 
-        # Générer le PDF
         try:
             now = datetime.now().strftime("%Y%m%d_%H%M%S")
             nom_fichier = f"rapport_bilan_{now}.pdf"
@@ -1490,18 +1800,15 @@ Total TTC : {format_price(total_ttc)}
 
             story = []
 
-            # Titre
             story.append(Paragraph("Rapport financier - Chez Sall", style_heading))
             story.append(Spacer(1, 12))
 
-            # Période
             if periode == "Personnalisee" and date_debut and date_fin:
                 story.append(Paragraph(f"Période du {date_debut} au {date_fin}", style_normal))
             else:
                 story.append(Paragraph(f"Période : {periode}", style_normal))
             story.append(Spacer(1, 12))
 
-            # Entrées
             story.append(Paragraph("Entrées (Commandes)", style_heading2))
             story.append(Spacer(1, 6))
             if commandes_filtrees:
@@ -1533,7 +1840,6 @@ Total TTC : {format_price(total_ttc)}
                 story.append(Paragraph("Aucune commande sur cette période.", style_normal))
             story.append(Spacer(1, 12))
 
-            # Sorties
             story.append(Paragraph("Sorties (Dépenses)", style_heading2))
             story.append(Spacer(1, 6))
             if depenses_filtrees:
@@ -1565,7 +1871,6 @@ Total TTC : {format_price(total_ttc)}
                 story.append(Paragraph("Aucune dépense sur cette période.", style_normal))
             story.append(Spacer(1, 12))
 
-            # Solde
             if solde >= 0:
                 solde_text = f"Solde : {format_price(solde)} (Bénéfice)"
             else:
@@ -1573,7 +1878,6 @@ Total TTC : {format_price(total_ttc)}
             story.append(Paragraph(solde_text, style_heading2))
             story.append(Spacer(1, 12))
 
-            # Date d'impression
             story.append(Paragraph(f"Rapport généré le {datetime.now().strftime('%d/%m/%Y %H:%M')}", style_normal))
 
             doc.build(story)
@@ -1600,7 +1904,9 @@ Total TTC : {format_price(total_ttc)}
         dialog.geometry("300x150")
         dialog.configure(bg=COLORS['light'])
         dialog.transient(self)
-        dialog.grab_set()
+        # Pas de grab_set pour éviter le blocage
+        # dialog.grab_set()
+        dialog.focus_force()
         
         tk.Label(dialog, text=f"Quantité pour {plat} :", 
                 font=('Arial', 10), bg=COLORS['light']).pack(pady=10)
@@ -1703,12 +2009,10 @@ Total TTC : {format_price(total_ttc)}
         
         avis = self.combo_avis.get()
         
-        # Enregistrer la commande
         nouvel_id, total_ht, tva, total_ttc = ajouter_commande_fichier(
             nom_client, plats_affichage, total_ht, avis, paiement
         )
         
-        # Stocker les infos pour le reçu
         self.derniere_commande_info = {
             'id': str(nouvel_id),
             'date': date.today().strftime('%d/%m/%Y'),
@@ -1719,10 +2023,8 @@ Total TTC : {format_price(total_ttc)}
             'paiement': paiement
         }
         
-        # Activer le bouton Reçu
         self.btn_imprimer_recu.config(state="normal")
         
-        # Sauvegarder les données pour le message
         client = nom_client
         plats = plats_affichage
         total_ht_val = total_ht
@@ -1732,7 +2034,6 @@ Total TTC : {format_price(total_ttc)}
         avis_val = avis
         id_commande = nouvel_id
         
-        # Réinitialisation des champs
         self.champ_client.delete(0, tk.END)
         self.panier_items = []
         self.actualiser_panier()
@@ -1744,7 +2045,6 @@ Total TTC : {format_price(total_ttc)}
         self.label_tva.config(text="TVA (18%) : 0 FCFA")
         self.label_total_ttc.config(text="Total TTC : 0 FCFA")
         
-        # Message de confirmation
         messagebox.showinfo("Commande enregistree",
                             f"✅ Commande enregistree !\n\n"
                             f"N°: #{id_commande}\n"
