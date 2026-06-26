@@ -4,7 +4,7 @@ GESTION DES TABLES
 ================================================================
 """
 
-from App.App_test.res.database import get_connection
+from database import get_connection
 
 class GestionTables:
     def __init__(self):

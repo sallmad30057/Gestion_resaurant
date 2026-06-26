@@ -4,7 +4,7 @@ GESTION DES CLIENTS
 ================================================================
 """
 
-from App.App_test.res.database import get_connection
+from database import get_connection
 from datetime import datetime
 
 class GestionClients:

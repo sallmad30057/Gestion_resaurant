@@ -4,7 +4,6 @@ INTERFACE GRAPHIQUE - Restaurant Chez Sall (version SQLite)
 Avec sécurité (mot de passe application + mot de passe manager)
 ================================================================
 """
-
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,20 +21,20 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
-from App.App_test.res.Restaurant import Serveur, Caissier, Manager, Restaurant
-from App.App_test.res.menu import MENU, TVA
-from App.App_test.res.recu import afficher_apercu_recu, generer_recu, imprimer_recu_depuis_commande, get_dossier_recus
-from App.App_test.securite.mots_de_passe import MOT_DE_PASSE_APPLICATION, MOT_DE_PASSE_MANAGER
+from Restaurant import Serveur, Caissier, Manager, Restaurant
+from menu import MENU, TVA
+from recu import afficher_apercu_recu, generer_recu, imprimer_recu_depuis_commande, get_dossier_recus
+from securite.mots_de_passe import MOT_DE_PASSE_APPLICATION, MOT_DE_PASSE_MANAGER
 
 # ============================================================
 # IMPORTS SQLITE
 # ============================================================
-from App.App_test.res.database import init_db
-from App.App_test.res.tables import GestionTables
-from App.App_test.res.clients import GestionClients
-from App.App_test.res.commandes_manager import GestionCommandes
-from App.App_test.res.depenses_manager import GestionDepenses, charger_depenses, ajouter_depense_fichier, sauvegarder_depenses
-import App.App_test.config.config as config
+from database import init_db
+from tables import GestionTables
+from clients import GestionClients
+from commandes_manager import GestionCommandes
+from depenses_manager import GestionDepenses, charger_depenses, ajouter_depense_fichier, sauvegarder_depenses
+import config.config as config
 
 
 # ============================================================
@@ -43,29 +42,18 @@ import App.App_test.config.config as config
 # ============================================================
 
 def format_price(amount):
-    """
-    Formate un prix en FCFA avec séparation des milliers
-    Exemple: 23000 -> "23 000 FCFA"
-             134565 -> "134 565 FCFA"
-             1234.56 -> "1 234 FCFA"
-    """
     try:
         amount = round(float(amount))
         formatted = f"{amount:,}".replace(",", " ")
         return f"{formatted} FCFA"
-    except (ValueError, TypeError):
+    except:
         return "0 FCFA"
 
 def format_price_table(amount):
-    """
-    Formate un prix pour le tableau (sans FCFA pour économiser de l'espace)
-    Exemple: 23000 -> "23 000"
-    """
     try:
         amount = round(float(amount))
-        formatted = f"{amount:,}".replace(",", " ")
-        return formatted
-    except (ValueError, TypeError):
+        return f"{amount:,}".replace(",", " ")
+    except:
         return "0"
 
 
@@ -74,13 +62,11 @@ def format_price_table(amount):
 # ------------------------------------------------------------------
 FICHIER_COMMANDES = "commandes.csv"
 COLONNES_COMMANDES = ["ID", "Date", "Heure", "Client", "Plats", "Total HT (€)", "TVA (€)", "Total TTC (€)", "Avis", "Paiement"]
-
 FICHIER_DEPENSES = "depenses.csv"
 COLONNES_DEPENSES = ["ID", "Date", "Type", "Description", "Montant (€)"]
 
 TYPES_DEPENSE = ["Salaire", "Loyer", "Électricité", "Eau", "Internet", "Ménage", "Autre"]
 PERIODES = ["Toutes", "Aujourd'hui", "Cette semaine", "Ce mois", "Ce trimestre", "Cette année"]
-
 MOYENS_PAIEMENT = ["Espèce", "Wave", "Orange Money", "Carte", "Aucun"]
 
 COLORS = {
@@ -96,7 +82,6 @@ COLORS = {
     'gold': '#f1c40f'
 }
 
-# Employes crees une seule fois au demarrage
 serveur = Serveur("Alex")
 caissier = Caissier("Lina")
 manager = Manager("Paul")
@@ -107,30 +92,25 @@ restaurant = Restaurant("Chez Sall", MENU, {"serveur": serveur, "caissier": cais
 # OUTILS : DATES ET PERIODES
 # ------------------------------------------------------------------
 def date_dans_periode(date_texte, periode):
-    """Renvoie True si une date (texte 'AAAA-MM-JJ') appartient a la periode demandee."""
     if periode == "Toutes":
         return True
     try:
         d = datetime.strptime(date_texte, "%Y-%m-%d").date()
-    except ValueError:
+    except:
         return False
-
-    aujourd_hui = date.today()
-
+    aujourd = date.today()
     if periode == "Aujourd'hui":
-        return d == aujourd_hui
+        return d == aujourd
     if periode == "Cette semaine":
-        debut_semaine = aujourd_hui - timedelta(days=aujourd_hui.weekday())
-        fin_semaine = debut_semaine + timedelta(days=6)
-        return debut_semaine <= d <= fin_semaine
+        debut = aujourd - timedelta(days=aujourd.weekday())
+        fin = debut + timedelta(days=6)
+        return debut <= d <= fin
     if periode == "Ce mois":
-        return d.year == aujourd_hui.year and d.month == aujourd_hui.month
+        return d.year == aujourd.year and d.month == aujourd.month
     if periode == "Ce trimestre":
-        tri_actuel = (aujourd_hui.month - 1) // 3
-        tri_date = (d.month - 1) // 3
-        return d.year == aujourd_hui.year and tri_date == tri_actuel
+        return d.year == aujourd.year and ((d.month-1)//3) == ((aujourd.month-1)//3)
     if periode == "Cette année":
-        return d.year == aujourd_hui.year
+        return d.year == aujourd.year
     return True
 
 
@@ -141,8 +121,6 @@ class FenetreConnexion(tk.Toplevel):
     def __init__(self, parent, titre="Connexion", message="Entrez le mot de passe :"):
         super().__init__(parent)
         self.parent = parent
-        self.titre = titre
-        self.message = message
         self.mot_de_passe = None
         self.ok = False
         self.geometry("350x150")
@@ -150,7 +128,6 @@ class FenetreConnexion(tk.Toplevel):
         self.configure(bg=COLORS['light'])
         self.transient(parent)
         self.focus_force()
-
         self.update_idletasks()
         x = (self.winfo_screenwidth() - self.winfo_width()) // 2
         y = (self.winfo_screenheight() - self.winfo_height()) // 2
@@ -193,13 +170,9 @@ class FenetreRestaurant(tk.Tk):
         self.minsize(1000, 600)
         self.configure(bg=COLORS['light'])
 
-        # Créer le dossier des reçus au démarrage
         get_dossier_recus()
-
-        # Initialiser la base de données SQLite
         init_db()
 
-        # Initialiser les gestionnaires SQLite
         self.gestion_tables = GestionTables()
         self.gestion_clients = GestionClients()
         self.gestion_commandes = GestionCommandes()
@@ -220,12 +193,8 @@ class FenetreRestaurant(tk.Tk):
         self.notebook.add(self.onglet_depenses, text="💰 Depenses")
         self.notebook.add(self.onglet_bilan, text="📊 Bilan (manager)")
 
-        # Variables
-        self.derniere_commande_id = None
         self.derniere_commande_info = None
         self.commande_selectionnee_id = None
-
-        # Gestion de l'accès manager avec compteur de tentatives
         self.tentatives_manager_bilan = 0
         self.tentatives_manager_depenses = 0
         self.acces_bilan = False
@@ -236,72 +205,46 @@ class FenetreRestaurant(tk.Tk):
         self.verifier_acces_application()
 
     def appliquer_style(self):
-        """Applique un style moderne a l'interface."""
         style = ttk.Style()
         style.theme_use('clam')
-
         style.configure('TNotebook', background=COLORS['light'])
         style.configure('TNotebook.Tab', padding=[15, 5], font=('Arial', 10, 'bold'))
         style.map('TNotebook.Tab',
                   background=[('selected', COLORS['primary']), ('active', COLORS['hover'])],
                   foreground=[('selected', COLORS['white']), ('active', COLORS['white'])])
-
-        style.configure('Accent.TButton',
-                       background=COLORS['success'],
-                       foreground=COLORS['white'],
-                       padding=10,
-                       font=('Arial', 10, 'bold'))
-        style.map('Accent.TButton',
-                  background=[('active', '#2ecc71')])
-
-        style.configure('Danger.TButton',
-                       background=COLORS['danger'],
-                       foreground=COLORS['white'],
-                       padding=10)
-        style.map('Danger.TButton',
-                  background=[('active', '#c0392b')])
-
-        style.configure('Print.TButton',
-                       background=COLORS['warning'],
-                       foreground=COLORS['white'],
-                       padding=10,
-                       font=('Arial', 10, 'bold'))
-        style.map('Print.TButton',
-                  background=[('active', '#e67a2a')])
-
-        style.configure('Treeview',
-                       background=COLORS['white'],
-                       foreground=COLORS['dark'],
-                       rowheight=25,
-                       font=('Arial', 9))
-        style.map('Treeview',
-                  background=[('selected', COLORS['hover'])],
+        style.configure('Accent.TButton', background=COLORS['success'], foreground=COLORS['white'],
+                        padding=10, font=('Arial', 10, 'bold'))
+        style.map('Accent.TButton', background=[('active', '#2ecc71')])
+        style.configure('Danger.TButton', background=COLORS['danger'], foreground=COLORS['white'],
+                        padding=10)
+        style.map('Danger.TButton', background=[('active', '#c0392b')])
+        style.configure('Print.TButton', background=COLORS['warning'], foreground=COLORS['white'],
+                        padding=10, font=('Arial', 10, 'bold'))
+        style.map('Print.TButton', background=[('active', '#e67a2a')])
+        style.configure('Treeview', background=COLORS['white'], foreground=COLORS['dark'],
+                        rowheight=25, font=('Arial', 9))
+        style.map('Treeview', background=[('selected', COLORS['hover'])],
                   foreground=[('selected', COLORS['white'])])
-        style.configure('Treeview.Heading',
-                       background=COLORS['primary'],
-                       foreground=COLORS['white'],
-                       font=('Arial', 9, 'bold'))
+        style.configure('Treeview.Heading', background=COLORS['primary'],
+                        foreground=COLORS['white'], font=('Arial', 9, 'bold'))
 
     def on_resize(self, event):
-        """Gere le redimensionnement de la fenetre."""
         if hasattr(self, 'tableau_commandes'):
-            largeur_totale = self.tableau_commandes.winfo_width()
-            if largeur_totale > 100:
+            largeur = self.tableau_commandes.winfo_width()
+            if largeur > 100:
+                cols = ["id", "date", "heure", "client", "plats", "total_ht", "tva", "total_ttc", "avis", "paiement", "statut"]
                 largeurs = [40, 80, 60, 100, 150, 80, 80, 80, 80, 90, 100]
-                colonnes = ["id", "date", "heure", "client", "plats", "total_ht", "tva", "total_ttc", "avis", "paiement", "statut"]
-                for col, largeur in zip(colonnes, largeurs):
-                    self.tableau_commandes.column(col, width=largeur)
-
+                for col, w in zip(cols, largeurs):
+                    self.tableau_commandes.column(col, width=w)
         if hasattr(self, 'tableau_depenses'):
-            largeur_totale = self.tableau_depenses.winfo_width()
-            if largeur_totale > 100:
-                largeurs = [40, 90, 120, int(largeur_totale * 0.3), 90]
-                colonnes = ["id", "date", "type", "description", "montant"]
-                for col, largeur in zip(colonnes, largeurs):
-                    self.tableau_depenses.column(col, width=largeur)
+            largeur = self.tableau_depenses.winfo_width()
+            if largeur > 100:
+                cols = ["id", "date", "type", "description", "montant"]
+                largeurs = [40, 90, 120, int(largeur*0.3), 90]
+                for col, w in zip(cols, largeurs):
+                    self.tableau_depenses.column(col, width=w)
 
     def ouvrir_dossier_recus(self):
-        """Ouvre le dossier des reçus dans le gestionnaire de fichiers."""
         dossier = get_dossier_recus()
         if platform.system() == "Windows":
             os.startfile(dossier)
@@ -311,10 +254,9 @@ class FenetreRestaurant(tk.Tk):
             subprocess.run(["xdg-open", dossier])
 
     # ============================================================
-    # VÉRIFICATION DU MOT DE PASSE APPLICATION
+    # VERIFICATION MOT DE PASSE APPLICATION
     # ============================================================
     def verifier_acces_application(self):
-        """Affiche la fenêtre de connexion et vérifie le mot de passe, avec réessai."""
         while True:
             fenetre = FenetreConnexion(self, "Connexion à l'application", "Entrez le mot de passe de l'application :")
             self.wait_window(fenetre)
@@ -328,16 +270,15 @@ class FenetreRestaurant(tk.Tk):
                 return
 
     def creer_interface(self):
-        """Construit l'interface après validation du mot de passe général."""
         self.construire_onglet_commande()
         self.construire_onglet_commandes()
         self.construire_onglet_depenses()
         self.construire_onglet_bilan()
         self.bind("<Configure>", self.on_resize)
 
-    # ==============================================================
-    # GESTION GENERIQUE DE L'ACCÈS MANAGER
-    # ==============================================================
+    # ============================================================
+    # GESTION GENERIQUE ACCES MANAGER
+    # ============================================================
     def demander_mot_de_passe_manager(self, nom_onglet):
         if nom_onglet == "bilan":
             if self.bloque_bilan:
@@ -361,9 +302,9 @@ class FenetreRestaurant(tk.Tk):
             setattr(self, compteur_attr, 0)
             return True
         elif fenetre.ok:
-            nouvelles_tentatives = getattr(self, compteur_attr) + 1
-            setattr(self, compteur_attr, nouvelles_tentatives)
-            restant = max_tentatives - nouvelles_tentatives
+            nouvelles = getattr(self, compteur_attr) + 1
+            setattr(self, compteur_attr, nouvelles)
+            restant = max_tentatives - nouvelles
             if restant <= 0:
                 if nom_onglet == "bilan":
                     self.bloque_bilan = True
@@ -389,49 +330,33 @@ class FenetreRestaurant(tk.Tk):
 
         cadre_entete = tk.Frame(cadre, bg=COLORS['light'])
         cadre_entete.pack(fill="x", padx=20, pady=(10, 5))
-
         titre = tk.Label(cadre_entete, text="🛎️ Nouvelle commande",
                         font=('Arial', 14, 'bold'), fg=COLORS['primary'], bg=COLORS['light'])
         titre.pack(side="left")
 
-        self.btn_imprimer_recu = ttk.Button(
-            cadre_entete,
-            text="🖨️ Imprimer le reçu",
-            command=self.imprimer_recu_derniere_commande,
-            style='Print.TButton'
-        )
+        self.btn_imprimer_recu = ttk.Button(cadre_entete, text="🖨️ Imprimer le reçu",
+                                            command=self.imprimer_recu_derniere_commande,
+                                            style='Print.TButton')
         self.btn_imprimer_recu.pack(side="right", padx=5)
         self.btn_imprimer_recu.config(state="disabled")
 
-        ttk.Button(
-            cadre_entete,
-            text="📁 Voir les reçus",
-            command=self.ouvrir_dossier_recus,
-            style='Accent.TButton'
-        ).pack(side="right", padx=5)
+        ttk.Button(cadre_entete, text="📁 Voir les reçus",
+                   command=self.ouvrir_dossier_recus, style='Accent.TButton').pack(side="right", padx=5)
 
         # Canvas avec scroll
         canvas = tk.Canvas(cadre, bg=COLORS['light'], highlightthickness=0)
         scrollbar = ttk.Scrollbar(cadre, orient="vertical", command=canvas.yview)
         scrollable_frame = tk.Frame(canvas, bg=COLORS['light'])
-
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-
+        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=canvas.winfo_width())
         canvas.configure(yscrollcommand=scrollbar.set)
 
         def _on_mousewheel(event):
             canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-
         def _on_enter(event):
             canvas.bind_all("<MouseWheel>", _on_mousewheel)
-
         def _on_leave(event):
             canvas.unbind_all("<MouseWheel>")
-
         canvas.bind("<Enter>", _on_enter)
         canvas.bind("<Leave>", _on_leave)
         canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
@@ -439,7 +364,6 @@ class FenetreRestaurant(tk.Tk):
 
         def _configure_canvas(event):
             canvas.itemconfig(1, width=event.width)
-
         canvas.bind("<Configure>", _configure_canvas)
 
         canvas.pack(side="left", fill="both", expand=True)
@@ -457,93 +381,69 @@ class FenetreRestaurant(tk.Tk):
         self.champ_client = ttk.Entry(cadre_contenu, width=40, font=('Arial', 10))
         self.champ_client.pack(anchor="w", pady=(0, 15))
 
-        # SELECTEUR DE PLATS
+        # Sélecteur de plats
         tk.Label(cadre_contenu, text="🔽 Selectionner un plat :", font=('Arial', 10),
                 bg=COLORS['light'], fg=COLORS['dark']).pack(anchor="w", pady=(0, 5))
-
         cadre_selecteur = tk.Frame(cadre_contenu, bg=COLORS['light'])
         cadre_selecteur.pack(anchor="w", pady=(0, 10), fill="x")
-
-        self.selecteur_plat = ttk.Combobox(cadre_selecteur,
-                                           values=sorted(MENU.keys()),
-                                           width=30,
-                                           font=('Arial', 10))
+        self.selecteur_plat = ttk.Combobox(cadre_selecteur, values=sorted(MENU.keys()),
+                                           width=30, font=('Arial', 10))
         self.selecteur_plat.pack(side="left", padx=(0, 10))
         self.selecteur_plat.bind("<<ComboboxSelected>>", self.ajouter_plat_selectionne)
         self.selecteur_plat.bind("<Return>", self.ajouter_plat_selectionne)
-
         ttk.Button(cadre_selecteur, text="➕ Ajouter au panier",
-                  command=self.ajouter_plat_selectionne).pack(side="left", padx=5)
+                   command=self.ajouter_plat_selectionne).pack(side="left", padx=5)
 
         # Panier
         tk.Label(cadre_contenu, text="🛒 Panier :", font=('Arial', 10),
                 bg=COLORS['light'], fg=COLORS['dark']).pack(anchor="w", pady=(10, 5))
-
         cadre_panier = tk.Frame(cadre_contenu, bg=COLORS['light'], height=150)
         cadre_panier.pack(anchor="w", pady=(0, 15), fill="x")
         cadre_panier.pack_propagate(False)
-
         canvas_panier = tk.Canvas(cadre_panier, bg=COLORS['light'], height=150, highlightthickness=1)
         scrollbar_panier = ttk.Scrollbar(cadre_panier, orient="vertical", command=canvas_panier.yview)
         panier_frame = tk.Frame(canvas_panier, bg=COLORS['light'])
-
-        panier_frame.bind(
-            "<Configure>",
-            lambda e: canvas_panier.configure(scrollregion=canvas_panier.bbox("all"))
-        )
-
+        panier_frame.bind("<Configure>", lambda e: canvas_panier.configure(scrollregion=canvas_panier.bbox("all")))
         canvas_panier.create_window((0, 0), window=panier_frame, anchor="nw", width=canvas_panier.winfo_width())
         canvas_panier.configure(yscrollcommand=scrollbar_panier.set)
-
-        def _configure_panier_canvas(event):
+        def _configure_panier(event):
             canvas_panier.itemconfig(1, width=event.width)
-
-        canvas_panier.bind("<Configure>", _configure_panier_canvas)
-
+        canvas_panier.bind("<Configure>", _configure_panier)
         canvas_panier.pack(side="left", fill="both", expand=True, padx=(0, 5))
         scrollbar_panier.pack(side="right", fill="y")
-
         self.panier_frame = panier_frame
         self.panier_items = []
 
         # Totaux
         cadre_total = tk.Frame(cadre_contenu, bg=COLORS['light'])
         cadre_total.pack(anchor="w", pady=10, fill="x")
-
         self.label_total_ht = tk.Label(cadre_total, text="Total HT : 0 FCFA",
                                        font=('Arial', 11, 'bold'), fg=COLORS['primary'], bg=COLORS['light'])
         self.label_total_ht.pack(anchor="w")
-
         self.label_tva = tk.Label(cadre_total, text="TVA (18%) : 0 FCFA",
                                   font=('Arial', 11), fg=COLORS['warning'], bg=COLORS['light'])
         self.label_tva.pack(anchor="w")
-
         self.label_total_ttc = tk.Label(cadre_total, text="Total TTC : 0 FCFA",
                                         font=('Arial', 14, 'bold'), fg=COLORS['success'], bg=COLORS['light'])
         self.label_total_ttc.pack(anchor="w", pady=(5, 0))
 
-        # LIGNE : Moyen de paiement (gauche) + Boutons (droite)
+        # Ligne paiement + boutons
         cadre_ligne_basse = tk.Frame(cadre_contenu, bg=COLORS['light'])
         cadre_ligne_basse.pack(anchor="w", pady=(10, 10), fill="x")
-
         cadre_gauche_paiement = tk.Frame(cadre_ligne_basse, bg=COLORS['light'])
         cadre_gauche_paiement.pack(side="left", fill="x", expand=True)
-
         tk.Label(cadre_gauche_paiement, text="Moyen de paiement :", font=('Arial', 10),
                 bg=COLORS['light'], fg=COLORS['dark']).pack(side="left", padx=(0, 10))
         self.combo_paiement = ttk.Combobox(cadre_gauche_paiement, values=MOYENS_PAIEMENT,
                                            state="readonly", width=20, font=('Arial', 10))
         self.combo_paiement.current(0)
         self.combo_paiement.pack(side="left")
-
         cadre_droite_boutons = tk.Frame(cadre_ligne_basse, bg=COLORS['light'])
         cadre_droite_boutons.pack(side="right")
-
         ttk.Button(cadre_droite_boutons, text="✅ Valider la commande",
-                  command=self.valider_commande, style='Accent.TButton').pack(side="left", padx=5)
-
+                   command=self.valider_commande, style='Accent.TButton').pack(side="left", padx=5)
         ttk.Button(cadre_droite_boutons, text="🗑️ Vider le panier",
-                  command=self.vider_panier, style='Danger.TButton').pack(side="left", padx=5)
+                   command=self.vider_panier, style='Danger.TButton').pack(side="left", padx=5)
 
         # Avis
         tk.Label(cadre_contenu, text="Avis :", font=('Arial', 10),
@@ -556,43 +456,31 @@ class FenetreRestaurant(tk.Tk):
         tk.Frame(contenu, height=50, bg=COLORS['light']).pack()
 
     # ==============================================================
-    # MÉTHODES DU PANIER
+    # MÉTHODES PANIER
     # ==============================================================
     def ajouter_plat_selectionne(self, event=None):
         plat = self.selecteur_plat.get().strip()
-        if not plat:
-            messagebox.showwarning("Aucun plat", "Veuillez selectionner un plat dans la liste.")
+        if not plat or plat not in MENU:
+            messagebox.showwarning("Plat invalide", "Veuillez sélectionner un plat valide.")
             return
-
-        if plat not in MENU:
-            messagebox.showwarning("Plat invalide", f"'{plat}' n'est pas dans le menu.")
-            return
-
         dialog = tk.Toplevel(self)
         dialog.title("Quantité")
         dialog.geometry("300x150")
         dialog.configure(bg=COLORS['light'])
         dialog.transient(self)
         dialog.focus_force()
-
-        tk.Label(dialog, text=f"Quantité pour {plat} :",
-                font=('Arial', 10), bg=COLORS['light']).pack(pady=10)
-
+        tk.Label(dialog, text=f"Quantité pour {plat} :", font=('Arial', 10), bg=COLORS['light']).pack(pady=10)
         spinbox = ttk.Spinbox(dialog, from_=1, to=20, width=10)
         spinbox.set(1)
         spinbox.pack(pady=5)
-
         def confirmer():
-            quantite = int(spinbox.get())
+            qte = int(spinbox.get())
             dialog.destroy()
-            self.ajouter_au_panier(plat, quantite)
-
-        ttk.Button(dialog, text="Ajouter", command=confirmer,
-                  style='Accent.TButton').pack(pady=10)
-
+            self.ajouter_au_panier(plat, qte)
+        ttk.Button(dialog, text="Ajouter", command=confirmer, style='Accent.TButton').pack(pady=10)
         dialog.update_idletasks()
-        x = (dialog.winfo_screenwidth() - dialog.winfo_width()) // 2
-        y = (dialog.winfo_screenheight() - dialog.winfo_height()) // 2
+        x = (self.winfo_screenwidth() - dialog.winfo_width()) // 2
+        y = (self.winfo_screenheight() - dialog.winfo_height()) // 2
         dialog.geometry(f"+{x}+{y}")
 
     def ajouter_au_panier(self, plat, quantite):
@@ -602,33 +490,23 @@ class FenetreRestaurant(tk.Tk):
                 break
         else:
             self.panier_items.append((plat, quantite))
-
         self.actualiser_panier()
         self.selecteur_plat.set("")
 
     def actualiser_panier(self):
         for widget in self.panier_frame.winfo_children():
             widget.destroy()
-
         total_ht = 0
-        for plat, quantite in self.panier_items:
-            prix = MENU[plat] * quantite
+        for plat, qte in self.panier_items:
+            prix = MENU[plat] * qte
             total_ht += prix
-
             ligne = tk.Frame(self.panier_frame, bg=COLORS['light'])
             ligne.pack(fill="x", pady=2)
-
-            tk.Label(ligne, text=f"• {plat} x{quantite}",
-                    font=('Arial', 10), bg=COLORS['light']).pack(side="left", padx=5)
-            tk.Label(ligne, text=f"={format_price(prix)}",
-                    font=('Arial', 10), bg=COLORS['light'], fg=COLORS['primary']).pack(side="left", padx=5)
-
-            ttk.Button(ligne, text="✕", width=3,
-                      command=lambda p=plat: self.supprimer_du_panier(p)).pack(side="right", padx=5)
-
+            tk.Label(ligne, text=f"• {plat} x{qte}", font=('Arial', 10), bg=COLORS['light']).pack(side="left", padx=5)
+            tk.Label(ligne, text=f"={format_price(prix)}", font=('Arial', 10), bg=COLORS['light'], fg=COLORS['primary']).pack(side="left", padx=5)
+            ttk.Button(ligne, text="✕", width=3, command=lambda p=plat: self.supprimer_du_panier(p)).pack(side="right", padx=5)
         tva = total_ht * TVA
         total_ttc = total_ht + tva
-
         self.label_total_ht.config(text=f"Total HT : {format_price(total_ht)}")
         self.label_tva.config(text=f"TVA (18%) : {format_price(tva)}")
         self.label_total_ttc.config(text=f"Total TTC : {format_price(total_ttc)}")
@@ -638,50 +516,43 @@ class FenetreRestaurant(tk.Tk):
         self.actualiser_panier()
 
     def vider_panier(self):
-        if self.panier_items:
-            if messagebox.askyesno("Confirmation", "Vider le panier ?"):
-                self.panier_items = []
-                self.actualiser_panier()
+        if self.panier_items and messagebox.askyesno("Confirmation", "Vider le panier ?"):
+            self.panier_items = []
+            self.actualiser_panier()
 
     # ==============================================================
-    # VALIDER LA COMMANDE (SQLITE)
+    # VALIDER LA COMMANDE (SQLite)
     # ==============================================================
     def valider_commande(self):
         nom_client = self.champ_client.get().strip()
-
         if not nom_client:
             messagebox.showwarning("Information manquante", "Merci d'indiquer le nom du client.")
             return
-
         if not self.panier_items:
             messagebox.showwarning("Panier vide", "Le panier est vide. Ajoutez des plats.")
             return
 
         paiement = self.combo_paiement.get()
-
         plats_affichage = []
         plats_commande = []
         total_ht = 0
-
-        for plat, quantite in self.panier_items:
-            if quantite > 1:
-                plats_affichage.append(f"{plat} x{quantite}")
+        for plat, qte in self.panier_items:
+            if qte > 1:
+                plats_affichage.append(f"{plat} x{qte}")
             else:
                 plats_affichage.append(plat)
-            plats_commande.extend([plat] * quantite)
-            total_ht += MENU[plat] * quantite
-
+            plats_commande.extend([plat]*qte)
+            total_ht += MENU[plat]*qte
         avis = self.combo_avis.get()
         plats_str = " + ".join(plats_affichage)
 
         tva = total_ht * TVA
         total_ttc = total_ht + tva
 
-        # Enregistrer dans SQLite
-        gc = GestionCommandes()
+        gc = self.gestion_commandes
         commande_id = gc.ajouter_commande(
             client=nom_client,
-            table=None,  # À gérer avec l'interface des tables
+            table=None,
             plats=plats_str,
             total_ht=total_ht,
             tva=tva,
@@ -690,10 +561,8 @@ class FenetreRestaurant(tk.Tk):
             serveur="Alex",
             avis=avis
         )
-        gc.fermer()
 
-        # Gestion du client
-        gc_clients = GestionClients()
+        gc_clients = self.gestion_clients
         client_existant = gc_clients.get_client_par_nom(nom_client)
         if not client_existant:
             client_id = gc_clients.ajouter_client(nom_client)
@@ -701,9 +570,7 @@ class FenetreRestaurant(tk.Tk):
             client_id = client_existant['id']
         gc_clients.enregistrer_commande_client(client_id, commande_id)
         gc_clients.ajouter_depense_client(client_id, total_ttc)
-        gc_clients.fermer()
 
-        # Stocker les infos pour le reçu
         self.derniere_commande_info = {
             'id': str(commande_id),
             'date': date.today().strftime('%d/%m/%Y'),
@@ -713,12 +580,7 @@ class FenetreRestaurant(tk.Tk):
             'avis': avis,
             'paiement': paiement
         }
-
         self.btn_imprimer_recu.config(state="normal")
-
-        client = nom_client
-        plats = plats_affichage
-        id_commande = commande_id
 
         self.champ_client.delete(0, tk.END)
         self.panier_items = []
@@ -726,35 +588,29 @@ class FenetreRestaurant(tk.Tk):
         self.combo_avis.current(0)
         self.combo_paiement.current(0)
         self.selecteur_plat.set("")
-
         self.label_total_ht.config(text="Total HT : 0 FCFA")
         self.label_tva.config(text="TVA (18%) : 0 FCFA")
         self.label_total_ttc.config(text="Total TTC : 0 FCFA")
 
         messagebox.showinfo("Commande enregistree",
                             f"✅ Commande enregistree !\n\n"
-                            f"N°: #{id_commande}\n"
-                            f"Client : {client}\n"
-                            f"Plats : {', '.join(plats)}\n"
+                            f"N°: #{commande_id}\n"
+                            f"Client : {nom_client}\n"
+                            f"Plats : {', '.join(plats_affichage)}\n"
                             f"Total HT : {format_price(total_ht)}\n"
                             f"TVA (18%) : {format_price(tva)}\n"
                             f"Total TTC : {format_price(total_ttc)}\n"
                             f"Moyen de paiement : {paiement}\n"
                             f"Avis : {avis}")
-
         if messagebox.askyesno("Reçu", "Voulez-vous imprimer un reçu pour cette commande ?"):
             afficher_apercu_recu(self.derniere_commande_info, self)
-
         self.appliquer_filtres_commandes()
 
-    # ==============================================================
-    # IMPRIMER RECU
-    # ==============================================================
     def imprimer_recu_derniere_commande(self):
         if self.derniere_commande_info:
             afficher_apercu_recu(self.derniere_commande_info, self)
         else:
-            messagebox.showwarning("Aucune commande", "Aucune commande récente à imprimer.")
+            messagebox.showwarning("Aucune commande", "Aucune commande récente.")
 
     # ==============================================================
     # ONGLET 2 : COMMANDES
@@ -766,24 +622,16 @@ class FenetreRestaurant(tk.Tk):
         canvas = tk.Canvas(cadre, bg=COLORS['light'], highlightthickness=0)
         scrollbar = ttk.Scrollbar(cadre, orient="vertical", command=canvas.yview)
         scrollable_frame = tk.Frame(canvas, bg=COLORS['light'])
-
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-
+        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=canvas.winfo_width())
         canvas.configure(yscrollcommand=scrollbar.set)
 
         def _on_mousewheel(event):
             canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-
         def _on_enter(event):
             canvas.bind_all("<MouseWheel>", _on_mousewheel)
-
         def _on_leave(event):
             canvas.unbind_all("<MouseWheel>")
-
         canvas.bind("<Enter>", _on_enter)
         canvas.bind("<Leave>", _on_leave)
         canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
@@ -791,7 +639,6 @@ class FenetreRestaurant(tk.Tk):
 
         def _configure_canvas(event):
             canvas.itemconfig(1, width=event.width)
-
         canvas.bind("<Configure>", _configure_canvas)
 
         canvas.pack(side="left", fill="both", expand=True)
@@ -800,36 +647,30 @@ class FenetreRestaurant(tk.Tk):
         contenu = scrollable_frame
         contenu.configure(bg=COLORS['light'])
 
-        titre = tk.Label(contenu, text="📋 Liste des commandes",
-                        font=('Arial', 14, 'bold'), fg=COLORS['primary'], bg=COLORS['light'])
-        titre.pack(anchor="w", padx=10, pady=(10, 10))
+        tk.Label(contenu, text="📋 Liste des commandes",
+                 font=('Arial', 14, 'bold'), fg=COLORS['primary'], bg=COLORS['light']).pack(anchor="w", padx=10, pady=(10, 10))
 
         cadre_filtres = ttk.LabelFrame(contenu, text="🔍 Filtres", padding=15)
         cadre_filtres.pack(anchor="w", padx=10, pady=10, fill="x")
 
         ligne1 = tk.Frame(cadre_filtres, bg=COLORS['light'])
         ligne1.pack(fill="x", pady=5)
-
         tk.Label(ligne1, text="Client :", font=('Arial', 9), bg=COLORS['light']).pack(side="left", padx=5)
         self.filtre_client = ttk.Entry(ligne1, width=12)
         self.filtre_client.pack(side="left", padx=5)
-
         tk.Label(ligne1, text="Plat :", font=('Arial', 9), bg=COLORS['light']).pack(side="left", padx=5)
         self.filtre_plat = ttk.Entry(ligne1, width=12)
         self.filtre_plat.pack(side="left", padx=5)
-
         tk.Label(ligne1, text="ID :", font=('Arial', 9), bg=COLORS['light']).pack(side="left", padx=5)
         self.filtre_id = ttk.Entry(ligne1, width=8)
         self.filtre_id.pack(side="left", padx=5)
 
         ligne2 = tk.Frame(cadre_filtres, bg=COLORS['light'])
         ligne2.pack(fill="x", pady=5)
-
         tk.Label(ligne2, text="Periode :", font=('Arial', 9), bg=COLORS['light']).pack(side="left", padx=5)
         self.filtre_periode_commande = ttk.Combobox(ligne2, values=PERIODES, state="readonly", width=12)
         self.filtre_periode_commande.current(0)
         self.filtre_periode_commande.pack(side="left", padx=5)
-
         tk.Label(ligne2, text="Avis :", font=('Arial', 9), bg=COLORS['light']).pack(side="left", padx=5)
         self.filtre_avis = ttk.Combobox(ligne2, values=["Tous", "bon", "excellent", "pimenté", "parfait"],
                                         state="readonly", width=10)
@@ -838,30 +679,25 @@ class FenetreRestaurant(tk.Tk):
 
         ligne3 = tk.Frame(cadre_filtres, bg=COLORS['light'])
         ligne3.pack(fill="x", pady=10)
-
         ttk.Button(ligne3, text="🔍 Filtrer", command=self.appliquer_filtres_commandes).pack(side="left", padx=5)
         ttk.Button(ligne3, text="🔄 Reinitialiser", command=self.reinitialiser_filtres_commandes).pack(side="left", padx=5)
         ttk.Button(ligne3, text="📤 Exporter CSV", command=self.exporter_commandes_csv).pack(side="left", padx=5)
 
         cadre_tableau = tk.Frame(contenu, bg=COLORS['light'])
         cadre_tableau.pack(fill="both", expand=True, padx=10, pady=5)
-
         scroll_y = ttk.Scrollbar(cadre_tableau, orient="vertical")
         scroll_x = ttk.Scrollbar(cadre_tableau, orient="horizontal")
-
         colonnes = ("id", "date", "heure", "client", "plats", "total_ht", "tva", "total_ttc", "avis", "paiement", "statut")
         self.tableau_commandes = ttk.Treeview(cadre_tableau, columns=colonnes, show="headings",
-                                             yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set,
-                                             height=15, selectmode='extended')
+                                              yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set,
+                                              height=15, selectmode='extended')
         titres = ["ID", "Date", "Heure", "Client", "Plats", "HT", "TVA", "TTC", "Avis", "Paiement", "Statut"]
         largeurs = [40, 80, 60, 100, 150, 80, 80, 80, 80, 90, 100]
-        for col, titre, largeur in zip(colonnes, titres, largeurs):
+        for col, titre, w in zip(colonnes, titres, largeurs):
             self.tableau_commandes.heading(col, text=titre)
-            self.tableau_commandes.column(col, width=largeur, minwidth=largeur//2)
-
+            self.tableau_commandes.column(col, width=w, minwidth=w//2)
         scroll_y.config(command=self.tableau_commandes.yview)
         scroll_x.config(command=self.tableau_commandes.xview)
-
         self.tableau_commandes.pack(side="left", fill="both", expand=True)
         scroll_y.pack(side="right", fill="y")
         scroll_x.pack(side="bottom", fill="x")
@@ -870,44 +706,28 @@ class FenetreRestaurant(tk.Tk):
 
         cadre_bas = tk.Frame(contenu, bg=COLORS['light'])
         cadre_bas.pack(anchor="w", padx=10, pady=10, fill="x")
-
         self.label_resultat_commandes = tk.Label(cadre_bas, text="", font=('Arial', 10),
                                                 bg=COLORS['light'], fg=COLORS['primary'])
         self.label_resultat_commandes.pack(side="left")
-
         cadre_boutons = tk.Frame(cadre_bas, bg=COLORS['light'])
         cadre_boutons.pack(side="right")
-
-        ttk.Button(cadre_boutons, text="🖨️ Recu",
-                  command=self.afficher_recu_selection,
-                  style='Print.TButton').pack(side="right", padx=5)
-
-        ttk.Button(cadre_boutons, text="🗑️ Supprimer",
-                  command=self.supprimer_commandes_selectionnees,
-                  style='Danger.TButton').pack(side="right", padx=5)
-
-        # Nouveau bouton pour changer le statut
-        ttk.Button(cadre_boutons, text="📌 Changer statut",
-                  command=self.changer_statut_selection,
-                  style='Accent.TButton').pack(side="right", padx=5)
+        ttk.Button(cadre_boutons, text="🖨️ Recu", command=self.afficher_recu_selection,
+                   style='Print.TButton').pack(side="right", padx=5)
+        ttk.Button(cadre_boutons, text="🗑️ Supprimer", command=self.supprimer_commandes_selectionnees,
+                   style='Danger.TButton').pack(side="right", padx=5)
+        ttk.Button(cadre_boutons, text="📌 Changer statut", command=self.changer_statut_selection,
+                   style='Accent.TButton').pack(side="right", padx=5)
 
         tk.Frame(contenu, height=50, bg=COLORS['light']).pack()
-
         self.appliquer_filtres_commandes()
 
-    # ==============================================================
-    # GESTION DE LA SÉLECTION
-    # ==============================================================
     def on_commande_selectionnee(self, event):
         selection = self.tableau_commandes.selection()
         if not selection:
             self.commande_selectionnee_id = None
             return
         valeurs = self.tableau_commandes.item(selection[0], "values")
-        if not valeurs:
-            self.commande_selectionnee_id = None
-            return
-        self.commande_selectionnee_id = valeurs[0]
+        self.commande_selectionnee_id = valeurs[0] if valeurs else None
 
     def afficher_recu_selection(self):
         if not self.commande_selectionnee_id:
@@ -915,15 +735,11 @@ class FenetreRestaurant(tk.Tk):
             return
         self.ouvrir_details_commande(self.commande_selectionnee_id)
 
-    # ==============================================================
-    # CHANGER STATUT
-    # ==============================================================
     def changer_statut_selection(self):
         if not self.commande_selectionnee_id:
             messagebox.showwarning("Aucune sélection", "Veuillez sélectionner une commande.")
             return
 
-        # Fenêtre de choix du statut
         dialog = tk.Toplevel(self)
         dialog.title("Changer le statut")
         dialog.geometry("300x200")
@@ -931,45 +747,32 @@ class FenetreRestaurant(tk.Tk):
         dialog.transient(self)
         dialog.grab_set()
         dialog.focus_force()
-
         tk.Label(dialog, text="Sélectionnez le nouveau statut :",
-                font=('Arial', 11, 'bold'), bg=COLORS['light']).pack(pady=15)
-
+                 font=('Arial', 11, 'bold'), bg=COLORS['light']).pack(pady=15)
         statuts = ["En attente", "En préparation", "Servie", "Payée", "Terminée"]
         combo_statut = ttk.Combobox(dialog, values=statuts, state="readonly", width=20)
         combo_statut.current(0)
         combo_statut.pack(pady=10)
-
         def valider():
-            nouveau_statut = combo_statut.get()
-            if nouveau_statut:
-                gc = GestionCommandes()
+            nouveau = combo_statut.get()
+            if nouveau:
+                gc = self.gestion_commandes
                 try:
-                    gc.changer_statut(self.commande_selectionnee_id, nouveau_statut)
-                    gc.fermer()
+                    gc.changer_statut(self.commande_selectionnee_id, nouveau)
                     self.appliquer_filtres_commandes()
-                    messagebox.showinfo("Succès", f"Statut mis à jour : {nouveau_statut}")
+                    messagebox.showinfo("Succès", f"Statut mis à jour : {nouveau}")
                     dialog.destroy()
                 except ValueError as e:
                     messagebox.showerror("Erreur", str(e))
-                    gc.fermer()
-
-        ttk.Button(dialog, text="Valider", command=valider,
-                  style='Accent.TButton').pack(pady=10)
-
+        ttk.Button(dialog, text="Valider", command=valider, style='Accent.TButton').pack(pady=10)
         dialog.update_idletasks()
         x = (self.winfo_screenwidth() - dialog.winfo_width()) // 2
         y = (self.winfo_screenheight() - dialog.winfo_height()) // 2
         dialog.geometry(f"+{x}+{y}")
 
-    # ==============================================================
-    # FENÊTRE DES DÉTAILS
-    # ==============================================================
     def ouvrir_details_commande(self, commande_id):
-        gc = GestionCommandes()
+        gc = self.gestion_commandes
         cmd = gc.get_commande(commande_id)
-        gc.fermer()
-
         if not cmd:
             messagebox.showerror("Erreur", "Commande non trouvée.")
             return
@@ -980,14 +783,13 @@ class FenetreRestaurant(tk.Tk):
         fenetre.configure(bg=COLORS['white'])
         fenetre.transient(self)
         fenetre.focus_force()
-
         fenetre.update_idletasks()
         x = (self.winfo_screenwidth() - fenetre.winfo_width()) // 2
         y = (self.winfo_screenheight() - fenetre.winfo_height()) // 2
         fenetre.geometry(f"+{x}+{y}")
 
         tk.Label(fenetre, text=f"📄 Détails de la commande n°{commande_id}",
-                font=('Arial', 14, 'bold'), bg=COLORS['white'], fg=COLORS['primary']).pack(pady=(15, 10))
+                 font=('Arial', 14, 'bold'), bg=COLORS['white'], fg=COLORS['primary']).pack(pady=(15, 10))
 
         cadre_texte = tk.Frame(fenetre, bg=COLORS['white'])
         cadre_texte.pack(fill="both", expand=True, padx=15, pady=5)
@@ -1057,9 +859,8 @@ Total TTC : {format_price(total_ttc)}
         if not commande_id:
             return
         try:
-            gc = GestionCommandes()
+            gc = self.gestion_commandes
             cmd = gc.get_commande(commande_id)
-            gc.fermer()
             if cmd:
                 commande_info = {
                     'id': cmd['id'],
@@ -1083,9 +884,6 @@ Total TTC : {format_price(total_ttc)}
         plats = [p.strip() for p in plats_str.split('+') if p.strip()]
         return "\n".join(f"   • {p}" for p in plats)
 
-    # ==============================================================
-    # SUPPRIMER DES COMMANDES
-    # ==============================================================
     def supprimer_commandes_selectionnees(self):
         selection = self.tableau_commandes.selection()
         if not selection:
@@ -1096,32 +894,26 @@ Total TTC : {format_price(total_ttc)}
             return
         if not messagebox.askyesno("Confirmation", f"⚠️ Supprimer {len(ids)} commande(s) ?"):
             return
-
-        gc = GestionCommandes()
+        gc = self.gestion_commandes
         for cmd_id in ids:
             gc.supprimer_commande(cmd_id)
-        gc.fermer()
-
         self.appliquer_filtres_commandes()
         self.commande_selectionnee_id = None
         messagebox.showinfo("Succès", f"✅ {len(ids)} commande(s) supprimée(s).")
 
-    # ==============================================================
-    # APPLIQUER FILTRES (SQLite)
-    # ==============================================================
     def appliquer_filtres_commandes(self):
-        client_recherche = self.filtre_client.get().strip().lower()
-        plat_recherche = self.filtre_plat.get().strip().lower()
-        id_recherche = self.filtre_id.get().strip()
-        avis_recherche = self.filtre_avis.get()
+        client = self.filtre_client.get().strip().lower()
+        plat = self.filtre_plat.get().strip().lower()
+        id_f = self.filtre_id.get().strip()
+        avis = self.filtre_avis.get()
         periode = self.filtre_periode_commande.get()
 
         for ligne in self.tableau_commandes.get_children():
             self.tableau_commandes.delete(ligne)
 
-        gc = GestionCommandes()
+        gc = self.gestion_commandes
         if periode == "Toutes":
-            commandes = gc.get_commandes_jour()  # Ou toutes les commandes
+            commandes = gc.get_commandes_jour()
         elif periode == "Aujourd'hui":
             commandes = gc.get_commandes_jour()
         elif periode == "Cette semaine":
@@ -1130,21 +922,19 @@ Total TTC : {format_price(total_ttc)}
             commandes = gc.get_commandes_mois()
         else:
             commandes = gc.get_commandes_jour()
-        gc.fermer()
 
         total_ht = 0
         total_ttc = 0
         nb = 0
-
         for c in commandes:
             c = dict(c)
-            if id_recherche and str(c.get("ID", c.get("id", ""))) != id_recherche:
+            if id_f and str(c.get("ID", c.get("id", ""))) != id_f:
                 continue
-            if client_recherche and client_recherche not in c.get("Client", c.get("client", "")).lower():
+            if client and client not in c.get("Client", c.get("client", "")).lower():
                 continue
-            if plat_recherche and plat_recherche not in c.get("Plats", c.get("plats", "")).lower():
+            if plat and plat not in c.get("Plats", c.get("plats", "")).lower():
                 continue
-            if avis_recherche != "Tous" and c.get("Avis", c.get("avis", "")) != avis_recherche:
+            if avis != "Tous" and c.get("Avis", c.get("avis", "")) != avis:
                 continue
 
             total_ht_cmd = float(c.get("Total HT (€)", c.get("total_ht", 0)))
@@ -1167,7 +957,6 @@ Total TTC : {format_price(total_ttc)}
             total_ht += total_ht_cmd
             total_ttc += total_ttc_cmd
             nb += 1
-
         self.label_resultat_commandes.config(
             text=f"📊 {nb} commande(s) - HT : {format_price(total_ht)} - TTC : {format_price(total_ttc)}"
         )
@@ -1184,42 +973,36 @@ Total TTC : {format_price(total_ttc)}
         if not self.tableau_commandes.get_children():
             messagebox.showwarning("Aucune donnee", "Aucune commande a exporter.")
             return
-
-        nom_fichier = f"export_commandes_{date.today().isoformat()}.csv"
+        nom = f"export_commandes_{date.today().isoformat()}.csv"
         try:
-            with open(nom_fichier, mode="w", newline="", encoding="utf-8") as f:
+            with open(nom, mode="w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
                 writer.writerow(["ID", "Date", "Heure", "Client", "Plats", "Total HT (€)", "TVA (€)", "Total TTC (€)", "Avis", "Paiement", "Statut"])
                 for ligne in self.tableau_commandes.get_children():
-                    valeurs = self.tableau_commandes.item(ligne, "values")
-                    writer.writerow(valeurs)
-            messagebox.showinfo("Export reussi", f"✅ Commandes exportees dans {nom_fichier}")
+                    writer.writerow(self.tableau_commandes.item(ligne, "values"))
+            messagebox.showinfo("Export réussi", f"✅ Fichier exporté : {nom}")
         except Exception as e:
-            messagebox.showerror("Erreur d'export", f"Erreur : {str(e)}")
+            messagebox.showerror("Erreur", f"Erreur : {str(e)}")
 
     # ==============================================================
-    # ONGLET 3 : DÉPENSES (SQLite)
+    # ONGLET 3 : DÉPENSES (CORRIGÉ)
     # ==============================================================
     def construire_onglet_depenses(self):
-        """Construit l'onglet Dépenses avec SQLite."""
         cadre = self.onglet_depenses
         cadre.configure(bg=COLORS['light'])
 
         self.depenses_frame = tk.Frame(cadre, bg=COLORS['light'])
         self.depenses_frame.pack(fill="both", expand=True)
-
         self.afficher_verrou_depenses()
 
     def afficher_verrou_depenses(self):
         for widget in self.depenses_frame.winfo_children():
             widget.destroy()
-
         if self.bloque_depenses:
             tk.Label(self.depenses_frame,
                      text="🔒 Accès aux Dépenses définitivement bloqué\n\nTrop de tentatives échouées.",
                      font=('Arial', 14, 'bold'), bg=COLORS['light'], fg=COLORS['danger']).pack(pady=(100, 20))
             return
-
         tk.Label(self.depenses_frame,
                  text="🔒 Accès aux Dépenses\n\nCe service est protégé par le mot de passe manager.",
                  font=('Arial', 14, 'bold'), bg=COLORS['light'], fg=COLORS['danger']).pack(pady=(100, 20))
@@ -1240,15 +1023,25 @@ Total TTC : {format_price(total_ttc)}
             self.afficher_verrou_depenses()
 
     def afficher_contenu_depenses(self):
+        """Affiche le contenu réel des dépenses après déverrouillage."""
         for widget in self.depenses_frame.winfo_children():
             widget.destroy()
 
-        # Canvas + scroll
+        # Créer un canvas avec scroll
         canvas = tk.Canvas(self.depenses_frame, bg=COLORS['light'], highlightthickness=0)
         scrollbar = ttk.Scrollbar(self.depenses_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = tk.Frame(canvas, bg=COLORS['light'])
-        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=canvas.winfo_width())
+
+        # ===> FORCER LA LARGEUR DU CANVAS
+        largeur = self.depenses_frame.winfo_width() or 800
+        canvas.config(width=largeur)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=largeur)
         canvas.configure(yscrollcommand=scrollbar.set)
 
         def _on_mousewheel(event):
@@ -1268,6 +1061,7 @@ Total TTC : {format_price(total_ttc)}
         contenu = scrollable_frame
         contenu.configure(bg=COLORS['light'])
 
+        # --- Contenu des dépenses ---
         titre = tk.Label(contenu, text="💰 Gestion des depenses",
                         font=('Arial', 14, 'bold'), fg=COLORS['primary'], bg=COLORS['light'])
         titre.pack(anchor="w", padx=10, pady=(10, 10))
@@ -1277,82 +1071,70 @@ Total TTC : {format_price(total_ttc)}
 
         ligne_form = tk.Frame(cadre_form, bg=COLORS['light'])
         ligne_form.pack(fill="x", pady=5)
-
         tk.Label(ligne_form, text="Type :", font=('Arial', 9), bg=COLORS['light']).pack(side="left", padx=5)
         self.combo_type_depense = ttk.Combobox(ligne_form, values=TYPES_DEPENSE, state="readonly", width=15)
         self.combo_type_depense.current(0)
         self.combo_type_depense.pack(side="left", padx=5)
-
         tk.Label(ligne_form, text="Description :", font=('Arial', 9), bg=COLORS['light']).pack(side="left", padx=5)
         self.champ_description_depense = ttk.Entry(ligne_form, width=25)
         self.champ_description_depense.pack(side="left", padx=5)
-
         tk.Label(ligne_form, text="Montant :", font=('Arial', 9), bg=COLORS['light']).pack(side="left", padx=5)
         self.champ_montant_depense = ttk.Entry(ligne_form, width=12)
         self.champ_montant_depense.pack(side="left", padx=5)
-
         ttk.Button(ligne_form, text="➕ Ajouter", command=self.ajouter_depense,
-                  style='Accent.TButton').pack(side="left", padx=10)
+                   style='Accent.TButton').pack(side="left", padx=10)
 
         cadre_filtres = ttk.LabelFrame(contenu, text="🔍 Filtres", padding=15)
         cadre_filtres.pack(anchor="w", padx=10, pady=10, fill="x")
 
         ligne_filtre = tk.Frame(cadre_filtres, bg=COLORS['light'])
         ligne_filtre.pack(fill="x", pady=5)
-
         tk.Label(ligne_filtre, text="Type :", font=('Arial', 9), bg=COLORS['light']).pack(side="left", padx=5)
         self.filtre_type_depense = ttk.Combobox(ligne_filtre, values=["Tous"] + TYPES_DEPENSE,
                                                 state="readonly", width=15)
         self.filtre_type_depense.current(0)
         self.filtre_type_depense.pack(side="left", padx=5)
-
         tk.Label(ligne_filtre, text="Periode :", font=('Arial', 9), bg=COLORS['light']).pack(side="left", padx=5)
         self.filtre_periode_depense = ttk.Combobox(ligne_filtre, values=PERIODES, state="readonly", width=14)
         self.filtre_periode_depense.current(0)
         self.filtre_periode_depense.pack(side="left", padx=5)
-
         ttk.Button(ligne_filtre, text="🔍 Filtrer", command=self.appliquer_filtres_depenses).pack(side="left", padx=5)
         ttk.Button(ligne_filtre, text="🔄 Reinitialiser", command=self.reinitialiser_filtres_depenses).pack(side="left", padx=5)
 
         cadre_tableau = tk.Frame(contenu, bg=COLORS['light'])
         cadre_tableau.pack(fill="both", expand=True, padx=10, pady=5)
-
         scroll_y = ttk.Scrollbar(cadre_tableau, orient="vertical")
         scroll_x = ttk.Scrollbar(cadre_tableau, orient="horizontal")
-
         colonnes = ("id", "date", "type", "description", "montant")
         self.tableau_depenses = ttk.Treeview(cadre_tableau, columns=colonnes, show="headings",
-                                            yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set,
-                                            height=10)
+                                             yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set,
+                                             height=10)
         titres = ["ID", "Date", "Type", "Description", "Montant"]
         largeurs = [40, 90, 120, 180, 90]
-        for col, titre, largeur in zip(colonnes, titres, largeurs):
+        for col, titre, w in zip(colonnes, titres, largeurs):
             self.tableau_depenses.heading(col, text=titre)
-            self.tableau_depenses.column(col, width=largeur, minwidth=largeur//2)
-
+            self.tableau_depenses.column(col, width=w, minwidth=w//2)
         scroll_y.config(command=self.tableau_depenses.yview)
         scroll_x.config(command=self.tableau_depenses.xview)
-
         self.tableau_depenses.pack(side="left", fill="both", expand=True)
         scroll_y.pack(side="right", fill="y")
         scroll_x.pack(side="bottom", fill="x")
 
         cadre_bas = tk.Frame(contenu, bg=COLORS['light'])
         cadre_bas.pack(anchor="w", padx=10, pady=10, fill="x")
-
         self.label_resultat_depenses = tk.Label(cadre_bas, text="", font=('Arial', 10),
                                                bg=COLORS['light'], fg=COLORS['primary'])
         self.label_resultat_depenses.pack(side="left")
-
         ttk.Button(cadre_bas, text="🗑️ Supprimer la depense",
-                  command=self.supprimer_depense_selectionnee, style='Danger.TButton').pack(side="right", padx=5)
+                   command=self.supprimer_depense_selectionnee, style='Danger.TButton').pack(side="right", padx=5)
 
         tk.Frame(contenu, height=50, bg=COLORS['light']).pack()
-        self.appliquer_filtres_depenses()
 
-    # ==============================================================
-    # MÉTHODES DES DÉPENSES
-    # ==============================================================
+        # ===> FORCER LA MISE À JOUR
+        canvas.update_idletasks()
+        self.appliquer_filtres_depenses()
+        self.update()
+
     def ajouter_depense(self):
         type_dep = self.combo_type_depense.get()
         desc = self.champ_description_depense.get().strip()
@@ -1361,9 +1143,8 @@ Total TTC : {format_price(total_ttc)}
         except:
             messagebox.showwarning("Montant invalide", "Le montant doit être un nombre.")
             return
-        gd = GestionDepenses()
+        gd = self.gestion_depenses
         gd.ajouter_depense(type_dep, desc, montant)
-        gd.fermer()
         messagebox.showinfo("Depense ajoutée", f"✅ {type_dep} : {format_price(montant)} ajoutée.")
         self.champ_description_depense.delete(0, tk.END)
         self.champ_montant_depense.delete(0, tk.END)
@@ -1376,9 +1157,8 @@ Total TTC : {format_price(total_ttc)}
         for ligne in self.tableau_depenses.get_children():
             self.tableau_depenses.delete(ligne)
 
-        gd = GestionDepenses()
+        gd = self.gestion_depenses
         depenses = gd.get_depenses(type_f if type_f != "Tous" else None)
-        gd.fermer()
 
         total = 0
         nb = 0
@@ -1412,14 +1192,13 @@ Total TTC : {format_price(total_ttc)}
         id_dep = self.tableau_depenses.item(selection[0], "values")[0]
         if not messagebox.askyesno("Confirmation", f"⚠️ Supprimer la dépense n°{id_dep} ?"):
             return
-        gd = GestionDepenses()
+        gd = self.gestion_depenses
         gd.supprimer_depense(id_dep)
-        gd.fermer()
         self.appliquer_filtres_depenses()
         messagebox.showinfo("Succès", "✅ Dépense supprimée.")
 
     # ==============================================================
-    # ONGLET 4 : BILAN
+    # ONGLET 4 : BILAN (CORRIGÉ)
     # ==============================================================
     def construire_onglet_bilan(self):
         cadre = self.onglet_bilan
@@ -1431,13 +1210,11 @@ Total TTC : {format_price(total_ttc)}
     def afficher_verrou_bilan(self):
         for widget in self.bilan_frame.winfo_children():
             widget.destroy()
-
         if self.bloque_bilan:
             tk.Label(self.bilan_frame,
                      text="🔒 Accès au Bilan définitivement bloqué\n\nTrop de tentatives échouées.",
                      font=('Arial', 14, 'bold'), bg=COLORS['light'], fg=COLORS['danger']).pack(pady=(100, 20))
             return
-
         tk.Label(self.bilan_frame,
                  text="🔒 Accès au Bilan Manager\n\nCe service est protégé par un mot de passe.",
                  font=('Arial', 14, 'bold'), bg=COLORS['light'], fg=COLORS['danger']).pack(pady=(100, 20))
@@ -1458,14 +1235,25 @@ Total TTC : {format_price(total_ttc)}
             self.afficher_verrou_bilan()
 
     def afficher_contenu_bilan(self):
+        """Affiche le contenu réel du bilan avec une barre de défilement."""
         for widget in self.bilan_frame.winfo_children():
             widget.destroy()
 
+        # Créer un canvas avec scroll
         canvas = tk.Canvas(self.bilan_frame, bg=COLORS['light'], highlightthickness=0)
         scrollbar = ttk.Scrollbar(self.bilan_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = tk.Frame(canvas, bg=COLORS['light'])
-        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=canvas.winfo_width())
+
+        # ===> FORCER LA LARGEUR DU CANVAS
+        largeur = self.bilan_frame.winfo_width() or 800
+        canvas.config(width=largeur)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=largeur)
         canvas.configure(yscrollcommand=scrollbar.set)
 
         def _on_mousewheel(event):
@@ -1485,6 +1273,7 @@ Total TTC : {format_price(total_ttc)}
         contenu = scrollable_frame
         contenu.configure(bg=COLORS['light'])
 
+        # --- Contenu du bilan ---
         cadre_entete = tk.Frame(contenu, bg=COLORS['light'])
         cadre_entete.pack(fill="x", padx=20, pady=(20, 10))
         tk.Label(cadre_entete, text="📊 Bilan financier",
@@ -1525,6 +1314,7 @@ Total TTC : {format_price(total_ttc)}
         self.bilan_date_fin.pack(side="left", padx=5)
         self.bilan_date_fin.insert(0, date.today().isoformat())
         self.bilan_date_fin.config(state="disabled")
+
         ttk.Button(cadre_periode, text="📊 Calculer le bilan",
                    command=self.calculer_et_afficher_bilan, style='Accent.TButton').pack(pady=5)
         ttk.Button(cadre_periode, text="📊 Générer rapport PDF",
@@ -1559,8 +1349,11 @@ Total TTC : {format_price(total_ttc)}
         self.text_details_depenses.pack(anchor="w", fill="both", expand=True, pady=5)
 
         tk.Frame(contenu, height=50, bg=COLORS['light']).pack()
+
+        # ===> FORCER LA MISE À JOUR
         canvas.update_idletasks()
         self.calculer_et_afficher_bilan()
+        self.update()
 
     def on_bilan_periode_changed(self, event=None):
         periode = self.combo_periode_bilan.get()
@@ -1581,16 +1374,11 @@ Total TTC : {format_price(total_ttc)}
                 messagebox.showwarning("Dates manquantes", "Veuillez saisir les dates.")
                 return
 
-        # Utiliser calculer_bilan_financier (avec SQLite)
-        from App.App_test.res.commandes_manager import GestionCommandes
-        from App.App_test.res.depenses_manager import GestionDepenses
+        gc = self.gestion_commandes
+        gd = self.gestion_depenses
 
-        gc = GestionCommandes()
-        gd = GestionDepenses()
-
-        # Récupérer les commandes et dépenses selon la période
         if periode == "Toutes" or periode == "Personnalisée":
-            commandes = gc.get_commandes_jour()  # Ou toutes les commandes
+            commandes = gc.get_commandes_jour()  # ou toutes les commandes
         elif periode == "Aujourd'hui":
             commandes = gc.get_commandes_jour()
         elif periode == "Cette semaine":
@@ -1600,17 +1388,12 @@ Total TTC : {format_price(total_ttc)}
         else:
             commandes = gc.get_commandes_jour()
 
-        # Filtrage des dépenses
         depenses = gd.get_depenses_par_periode(date_debut, date_fin) if date_debut and date_fin else gd.get_depenses()
-
-        gc.fermer()
-        gd.fermer()
 
         entrees = sum(c['total_ttc'] for c in commandes)
         sorties = sum(d['montant'] for d in depenses)
         solde = entrees - sorties
 
-        # Détail des dépenses par type
         depenses_par_type = {}
         for d in depenses:
             depenses_par_type[d['type']] = depenses_par_type.get(d['type'], 0) + d['montant']
@@ -1637,9 +1420,8 @@ Total TTC : {format_price(total_ttc)}
     def generer_rapport_bilan_pdf(self):
         if not self.acces_bilan:
             return
-        # La fonction est identique à la version précédente
-        # (On garde la même pour ne pas surcharger)
-        messagebox.showinfo("Rapport PDF", "Fonctionnalité disponible dans la version complète.")
+        # Fonction simplifiée pour le test
+        messagebox.showinfo("Rapport PDF", "Fonctionnalité de rapport PDF disponible dans la version complète.")
 
 
 if __name__ == "__main__":

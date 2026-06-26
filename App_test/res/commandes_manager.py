@@ -4,7 +4,7 @@ GESTION AVANCÉE DES COMMANDES (STATUTS, SUIVI)
 ================================================================
 """
 
-from App.App_test.res.database import get_connection
+from database import get_connection
 from datetime import datetime
 import sqlite3
 
